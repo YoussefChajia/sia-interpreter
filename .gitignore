@@ -1,0 +1,48 @@
+# Ignore Gradle files
+.gradle/
+build/
+
+# Ignore vscode files
+.vscode/
+
+# Ignore build files
+/build/
+*.class
+*.jar
+*.war
+*.ear
+*.exe
+*.o
+*.a
+*.out
+*.so
+
+# Ignore macOS files
+.DS_Store
+
+# Ignore temporary files
+*.log
+*.tmp
+*.swp
+*~
+
+# Ignore compiled shared objects
+*.dll
+*.dylib
+
+# Ignore generated files
+ast.json
+invalid.sia
+valid.sia
+
+# Ignore OS-specific files
+Thumbs.db
+ehthumbs.db
+
+# Ignore IDE-specific files
+.idea/
+*.iml
+
+# Ignore Gradle wrapper files
+gradlew
+gradlew.bat
