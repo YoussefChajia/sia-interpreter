@@ -1,5 +1,3 @@
-# Sia Interpreter
-
 The Sia Interpreter is a simple interpreter for a new programming language named Sia. It includes a scanner (lexer), parser, and semantic analyzer to evaluate and execute Sia code. This project is intended for educational purposes, providing insights into the implementation of interpreters and the underlying concepts of programming languages.
 
 ## Description
@@ -66,6 +64,48 @@ Run the interpreter:
 
 ```bash
 sia example.sia
+```
+
+### More Examples
+
+```sia
+x = 5
+name = "John"
+isTrue = true
+isFalse = false
+empty = nil
+
+sum = 3 + 4
+product = 2 * 3
+complex = (5 + 3) * 2 - 1
+modulus = 10 % 3
+
+x = 10
+y = 20
+result = x + y * 2
+
+a = 7
+b = a + 3
+c = b * 2
+
+x = -5
+notTrue = not true
+notFalse = not false
+
+x = 5
+y = 10
+
+if x < y then
+    result = "x is less than y"
+else
+    result = "x is not less than y"
+end
+
+x = 0
+
+while x < 5 do
+    x = x + 1
+end
 ```
 
 ### Note
