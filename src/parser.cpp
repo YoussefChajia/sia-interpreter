@@ -4,20 +4,23 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include <iostream>
 
 
 using namespace std;
 
-Parser::Parser(const string& input) : input_(input), lexer_(input) {}
+Parser::Parser() {}
 
-shared_ptr<Program> Parser::parse() {
+shared_ptr<Program> Parser::parse(const string& input) {
+    input_ = input;
+    lexer_.init(input);
     look_ahead_ = lexer_.get_next_token();
     return make_shared<Program>(parse_statement_list());
 }
 
-vector<shared_ptr<ExpressionStatement>> Parser::parse_statement_list() {
-    vector<shared_ptr<ExpressionStatement>> statement_list;
+// ==================================================
+
+vector<shared_ptr<Statement>> Parser::parse_statement_list() {
+    vector<shared_ptr<Statement>> statement_list;
 
     while (look_ahead_.has_value()) {
         statement_list.push_back(parse_statement());
@@ -26,8 +29,25 @@ vector<shared_ptr<ExpressionStatement>> Parser::parse_statement_list() {
     return statement_list;
 }
 
-shared_ptr<ExpressionStatement> Parser::parse_statement() {
-    return parse_expression_statement();
+shared_ptr<Statement> Parser::parse_statement() {
+    switch (look_ahead_->type) {
+        case TokenType::LEFT_BRACE: return parse_block_statement();
+        default: return parse_expression_statement();
+    }
+}
+
+// ==================================================
+
+shared_ptr<BlockStatement> Parser::parse_block_statement() {
+    eat(TokenType::LEFT_BRACE);
+    vector<shared_ptr<Statement>> block;
+
+    while (look_ahead_->type != TokenType::RIGHT_BRACE) {
+        block.push_back(parse_statement());
+    }
+
+    eat(TokenType::RIGHT_BRACE);
+    return make_shared<BlockStatement>(block);
 }
 
 shared_ptr<ExpressionStatement> Parser::parse_expression_statement() {
@@ -37,20 +57,19 @@ shared_ptr<ExpressionStatement> Parser::parse_expression_statement() {
 }
 
 shared_ptr<Expression> Parser::parse_expression() {
-    return parse_literal();
-}
-
-shared_ptr<Literal> Parser::parse_literal() {
     if (!look_ahead_.has_value()) {
         throw runtime_error("Unexpected end of input");
     }
 
     switch (look_ahead_->type) {
+        case TokenType::IDENTIFIER: return parse_identifier();
         case TokenType::NUMBER: return parse_numeric_literal();
         case TokenType::STRING: return parse_string_literal();
         default: throw runtime_error("Literal: Unexpected literal production");
     }
 }
+
+// ==================================================
 
 shared_ptr<StringLiteral> Parser::parse_string_literal() {
     Token token = eat(TokenType::STRING);
@@ -64,11 +83,30 @@ shared_ptr<NumericLiteral> Parser::parse_numeric_literal() {
     return make_shared<NumericLiteral>(stod(token.value));
 }
 
+shared_ptr<Expression> Parser::parse_identifier() {
+    string name = look_ahead_->value;
+    eat(TokenType::IDENTIFIER);
+    
+    if (look_ahead_.has_value() && look_ahead_->type == TokenType::SIMPLE_ASSIGN) {
+        eat(TokenType::SIMPLE_ASSIGN);
+        shared_ptr<Expression> expression = parse_expression();
+        return make_shared<AssignmentExpression>(name, expression);
+    }
+    
+    return make_shared<Identifier>(name);
+}
+
+// ==================================================
+
 string Parser::token_type_to_string(const TokenType& token_type) {
     map<TokenType, string> type_to_string = {
+        {IDENTIFIER, "IDENTIFIER"},
         {NUMBER, "NUMBER"},
         {STRING, "STRING"},
-        {SEMICOLON, "SEMICOLON"}
+        {SIMPLE_ASSIGN, "SIMPLE_ASSIGN"},
+        {SEMICOLON, "SEMICOLON"},
+        {LEFT_BRACE, "LEFT_BRACE"},
+        {RIGHT_BRACE, "RIGHT_BRACE"}
     };
 
     return type_to_string[token_type];
@@ -86,54 +124,4 @@ Token Parser::eat(const TokenType& token_type) {
     Token token = look_ahead_.value();
     look_ahead_ = lexer_.get_next_token();
     return token;
-}
-
-void Parser::print_indent(int indent) {
-    cout << string(indent * 2, ' ');
-}
-
-void Parser::print_comma(bool last_item) {
-    cout << (last_item ? "" : ",") << endl;
-}
-
-void Parser::print_ast(const shared_ptr<Node>& node, int indent) {
-    print_indent(indent);
-    cout << "{" << endl;
-    
-    print_indent(indent + 1);
-    cout << "\"type\": \"" << node->type << "\"";
-
-    if (auto program = dynamic_pointer_cast<Program>(node)) {
-        cout << "," << endl;
-        print_indent(indent + 1);
-        cout << "\"body\": [" << endl;
-        
-        for (size_t i = 0; i < program->body.size(); ++i) {
-            print_ast(program->body[i], indent + 2);
-            print_comma(i == program->body.size() - 1);
-        }
-        
-        print_indent(indent + 1);
-        cout << "]";
-    }
-    else if (auto expr_stmt = dynamic_pointer_cast<ExpressionStatement>(node)) {
-        cout << "," << endl;
-        print_indent(indent + 1);
-        cout << "\"expression\": " << endl;
-        print_ast(expr_stmt->expression, indent + 1);
-    }
-    else if (auto str_literal = dynamic_pointer_cast<StringLiteral>(node)) {
-        cout << "," << endl;
-        print_indent(indent + 1);
-        cout << "\"value\": \"" << str_literal->value << "\"";
-    }
-    else if (auto num_literal = dynamic_pointer_cast<NumericLiteral>(node)) {
-        cout << "," << endl;
-        print_indent(indent + 1);
-        cout << "\"value\": " << num_literal->value;
-    }
-    
-    cout << endl;
-    print_indent(indent);
-    cout << "}";
 }

@@ -3,7 +3,7 @@
 
 using namespace std;
 
-Lexer::Lexer(const string& input) : input_(input), cursor_(0) {
+Lexer::Lexer() {
     spec_ = {
         // Whitespaces
         {regex(R"(^\s+)"), nullopt},
@@ -14,13 +14,24 @@ Lexer::Lexer(const string& input) : input_(input), cursor_(0) {
 
         // Symbols
         {regex(R"(^;)"), TokenType::SEMICOLON},
+        {regex(R"(^\{)"), TokenType::LEFT_BRACE},
+        {regex(R"(^\})"), TokenType::RIGHT_BRACE},
 
-        // Numbers
+        // Identifiers
+        {regex(R"(^[a-zA-Z][a-zA-Z0-9_]*)"), TokenType::IDENTIFIER},
+
+        // Assignments
+        {regex(R"(^=)"), TokenType::SIMPLE_ASSIGN},
+
+        // Literals
         {regex(R"(^\d+)"), TokenType::NUMBER},
-
-        // Strings
         {regex(R"(^"[^"]*")"), TokenType::STRING}
     };
+}
+
+void Lexer::init(const string& input) {
+    input_ = input;
+    cursor_ = 0;
 }
 
 bool Lexer::has_more_tokens() const {

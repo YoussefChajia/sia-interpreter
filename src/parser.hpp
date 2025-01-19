@@ -14,31 +14,13 @@ public:
     virtual ~Node() = default;
 };
 
-/*  
- *  Program
- *    : StatementList
- *    ;
- *
- *  StatementList
- *    : Statement
- *    | StatementList
- *    ;
- *
- *  Statement
- *    : ExpressionStatement
- *    | BlockStatement
- *    ;
- *
- *  ExpressionStatement
- *    : Expression ';'
- *    ;
- *
- *  Literal
- *    : NumericLiteral
- *    | StringLiteral
- *    ;
- *
- */
+// ==================================================
+
+class Statement : public Node {
+public:
+    Statement() = default;
+    virtual ~Statement() = default;
+};
 
 class Expression : public Node {
 public:
@@ -46,20 +28,54 @@ public:
     virtual ~Expression() = default;
 };
 
-class ExpressionStatement : public Node {
+// ==================================================
+
+class BlockStatement : public Statement {
 public:
-    explicit ExpressionStatement(shared_ptr<Expression> ex) : expression(ex) {
+    explicit BlockStatement(const vector<shared_ptr<Statement>>& bd) : body(bd) {
+        type = "BlockStatement";
+    }
+    vector<shared_ptr<Statement>> body;
+    virtual ~BlockStatement() = default;
+};
+
+class ExpressionStatement : public Statement {
+public:
+    explicit ExpressionStatement(const shared_ptr<Expression>& exp) : expression(exp) {
         type = "ExpressionStatement";
     }
     shared_ptr<Expression> expression;
     virtual ~ExpressionStatement() = default;
 };
 
+// ==================================================
+
 class Literal : public Expression {
 public:
     Literal() = default;
     virtual ~Literal() = default;
 };
+
+class Identifier : public Expression {
+public:
+    explicit Identifier(const string& val) : value(val) {
+        type = "Identifier";
+    }
+    string value;
+    virtual ~Identifier() = default;
+};
+
+class AssignmentExpression : public Expression {
+public:
+    explicit AssignmentExpression(const string& name, const shared_ptr<Expression>& exp) : identifier(name), expression(exp) {
+        type = "AssignmentExpression";
+    }
+    string identifier;
+    shared_ptr<Expression> expression;
+    virtual ~AssignmentExpression() = default;
+};
+
+// ==================================================
 
 class StringLiteral : public Literal {
 public:
@@ -79,20 +95,23 @@ public:
     virtual ~NumericLiteral() = default;
 };
 
+// ==================================================
+
 class Program : public Node {
 public:
-    explicit Program(const vector<shared_ptr<ExpressionStatement>>& b) : body(b) {
+    explicit Program(const vector<shared_ptr<Statement>>& b) : body(b) {
         type = "Program";
     }
-    vector<shared_ptr<ExpressionStatement>> body;
+    vector<shared_ptr<Statement>> body;
     virtual ~Program() = default;
 };
 
+// ==================================================
 
 class Parser {
 public:
-    Parser(const string& input);
-    shared_ptr<Program> parse();
+    Parser();
+    shared_ptr<Program> parse(const string& input);
     virtual ~Parser() = default;
 
     void print_ast(const shared_ptr<Node>& node, int indent = 0);
@@ -102,16 +121,18 @@ private:
     Lexer lexer_;
     optional<Token> look_ahead_;
 
-    vector<shared_ptr<ExpressionStatement>> parse_statement_list();
-    shared_ptr<ExpressionStatement> parse_statement();
+    vector<shared_ptr<Statement>> parse_statement_list();
+    shared_ptr<Statement> parse_statement();
+
+    shared_ptr<BlockStatement> parse_block_statement();
     shared_ptr<ExpressionStatement> parse_expression_statement();
     shared_ptr<Expression> parse_expression();
-    shared_ptr<Literal> parse_literal();
+
+    shared_ptr<Expression> parse_identifier();
+
     shared_ptr<StringLiteral> parse_string_literal();
     shared_ptr<NumericLiteral> parse_numeric_literal();
+
     Token eat(const TokenType& token_type);
     string token_type_to_string(const TokenType& token_type);
-
-    void print_indent(int indent);
-    void print_comma(bool last_item);
 };
