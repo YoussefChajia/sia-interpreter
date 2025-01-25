@@ -1,33 +1,12 @@
 #pragma once
 
 #include <string>
-#include <vector>
-#include <regex>
 #include <optional>
+#include <regex>
+
+#include "token.hpp"
 
 using namespace std;
-
-enum TokenType {
-    // Identifiers
-    IDENTIFIER,
-
-    // Literals
-    NUMBER,
-    STRING,
-
-    // Assignments
-    SIMPLE_ASSIGN,
-
-    // Symbols
-    SEMICOLON,
-    LEFT_BRACE,
-    RIGHT_BRACE
-};
-
-struct Token {
-    TokenType type;
-    string value;
-};
 
 struct Rule {
     regex pattern;
@@ -45,6 +24,8 @@ public:
 
 private:
     string input_;
-    size_t cursor_;
+    unsigned int cursor_;
+    unsigned int line_;
+    unsigned int column_;
     vector<pair<regex, optional<TokenType>>> spec_;
 };

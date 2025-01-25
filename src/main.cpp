@@ -1,12 +1,9 @@
-#include <cstdlib>
-#include <cstring>
 #include <iostream>
 #include <fstream>
-#include <sstream>
-#include <stdexcept>
 
+#include "ast.hpp"
 #include "parser.hpp"
-#include "printer.hpp"
+#include "old_evaluator.hpp"
 
 using namespace std;
 
@@ -32,7 +29,6 @@ void start_repl() {
     printf("Sia 0.1 - 2024\n");
     string line;
     Parser parser = Parser();
-    Printer printer = Printer();
     
     while (true) {
         cout << ">> ";
@@ -45,9 +41,9 @@ void start_repl() {
         }
         if (line == "quit") return;
 
-        shared_ptr<Program> ast = parser.parse(line);
-        printer.print_ast(ast);
-        cout << endl;
+        unique_ptr<ProgramNode> program = parser.parse(line);
+        Evaluator evaluator = Evaluator();
+        evaluator.evaluate(*program);
     }
 }
 
@@ -63,11 +59,10 @@ int main (int argc, char *argv[]) {
         }
         input = read_file(filename);
         Parser parser = Parser();
-        Printer printer = Printer();
         try {
-            shared_ptr<Program> ast = parser.parse(input);
-            printer.print_ast(ast);
-            cout << endl;
+            unique_ptr<ProgramNode> program = parser.parse(input);
+            Evaluator evaluator = Evaluator();
+            evaluator.evaluate(*program);
         } catch (const exception& e) {
             cerr << "Error: " << e.what() << endl;
         }
