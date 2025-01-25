@@ -1,6 +1,10 @@
-.PHONY: all
+.PHONY: all clean build
+
 all: build
 
-.PHONY: build
 build:
-	@cd build && make && cmake --build . && clear
+	@cd build && cmake ../ && make && clear
+
+clean:
+	@rm -rf build/*
+	@echo "Cleaned build!"

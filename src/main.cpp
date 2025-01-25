@@ -1,9 +1,10 @@
 #include <iostream>
 #include <fstream>
+#include <stdexcept>
 
 #include "ast.hpp"
 #include "parser.hpp"
-#include "old_evaluator.hpp"
+#include "evaluator.hpp"
 
 using namespace std;
 
@@ -57,17 +58,17 @@ int main (int argc, char *argv[]) {
             cout << "Invalid file extension" << endl;
             return 1;
         }
-        input = read_file(filename);
-        Parser parser = Parser();
         try {
+            input = read_file(filename);
+            Parser parser = Parser();
             unique_ptr<ProgramNode> program = parser.parse(input);
             Evaluator evaluator = Evaluator();
             evaluator.evaluate(*program);
-        } catch (const exception& e) {
-            cerr << "Error: " << e.what() << endl;
+        } catch (const runtime_error& e) {
+            cerr << " - " << e.what() << endl;
         }
     } else if (argc > 2) {
-        cout << "Usage: sia [filename]" << endl;
+        cout << "Usage: sia <filename.sia>" << endl;
         return 1;
 
     } else if (argc < 2) {

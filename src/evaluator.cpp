@@ -1,10 +1,17 @@
+#include <exception>
 #include <iostream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <variant>
 
 #include "ast.hpp"
+#include "token.hpp"
 #include "evaluator.hpp"
 
 
 using namespace std;
+// current possible types in the language
 using my_variant = variant<double, string>;
 
 Evaluator::Evaluator() {}
@@ -32,9 +39,65 @@ void Evaluator::evaluate_statement(const StatementNode& statement) {
         throw runtime_error("Unknown statement");
     }
 }
-my_variant Evaluator::evaluate_expression(const ExpressionNode& expression) {}
-my_variant Evaluator::evaluate_binary_op(TokenType op, const my_variant& left, const my_variant& right, unsigned int line, unsigned int column) {}
-my_variant Evaluator::evaluate_unary_op(TokenType op, const my_variant& operand, unsigned int line, unsigned int column) {}
-double Evaluator::get_number(const my_variant& value, unsigned int line, unsigned int column) {}
-string Evaluator::variant_to_string(const my_variant& value) {}
-string Evaluator::error_message(const string& message, unsigned int line, unsigned int column) {}
+
+my_variant Evaluator::evaluate_expression(const ExpressionNode& expression) {
+    if (auto string = dynamic_cast<const StringLiteral*>(&expression)) {
+        return my_variant(string->value);
+    } else if (auto number = dynamic_cast<const NumberLiteral*>(&expression)) {
+        return my_variant(number->value);
+    } else if (auto var = dynamic_cast<const VariableNode*>(&expression)) {
+        auto identifier = symbol_table_.find(var->identifier);
+        if (identifier == symbol_table_.end()) throw runtime_error("Undefined variable " + var->identifier);
+        return identifier->second;
+    } else if (auto binary = dynamic_cast<const BinaryOpNode*>(&expression)) {
+        my_variant left = evaluate_expression(*binary->left);
+        my_variant right = evaluate_expression(*binary->right);
+        return evaluate_binary_op(binary->op, left, right, binary->line, binary->column);
+    } else if (auto unary = dynamic_cast<const UnaryOpNode*>(&expression)) {
+        my_variant operand = evaluate_expression(*unary->operand);
+        return evaluate_unary_op(unary->op, operand, unary->line, unary->column);
+    } else {
+        throw runtime_error("Unknown expression");
+    }
+}
+
+my_variant Evaluator::evaluate_binary_op(TokenType op, const my_variant& left, const my_variant& right, unsigned int line, unsigned int column) {
+    double left_number = get_number(left, line, column);
+    double right_number = get_number(right, line, column);
+    switch (op) {
+        case TokenType::PLUS : return left_number + right_number;
+        case TokenType::MINUS : return left_number - right_number;
+        case TokenType::MULTIPLY : return left_number * right_number;
+        case TokenType::DIVIDE : 
+            if (right_number == 0) throw runtime_error(error_message("Division by zero", line, column));
+            return left_number / right_number;
+        default: throw runtime_error(error_message("Invallid operator", line, column));
+    }
+}
+
+my_variant Evaluator::evaluate_unary_op(TokenType op, const my_variant& operand, unsigned int line, unsigned int column) {
+    if (op == TokenType::MINUS) return -get_number(operand, line, column);
+    throw runtime_error(error_message("Invallid unary operator", line, column));
+}
+
+double Evaluator::get_number(const my_variant& value, unsigned int line, unsigned int column) {
+    if (holds_alternative<double>(value)) return get<double>(value);
+    throw runtime_error(error_message("Expected number", line, column));
+}
+
+string Evaluator::variant_to_string(const my_variant& value) {
+    if (holds_alternative<double>(value)) {
+        string str = to_string(get<double>(value));
+        str.erase(str.find_last_not_of('0') + 1, string::npos);
+        if (str.back() == '.') str.pop_back();
+        return str;
+    }
+    return get<string>(value);
+}
+
+string Evaluator::error_message(const string& message, unsigned int line, unsigned int column) {
+    // safely constructing the string
+    stringstream string_stream;
+    cout << "Error at " << line << ":" << column << " - " << message;
+    return string_stream.str();
+}
