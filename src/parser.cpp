@@ -1,3 +1,4 @@
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -31,14 +32,24 @@ unique_ptr<ProgramNode> Parser::parse_program() {
 
 unique_ptr<StatementNode> Parser::parse_statement() {
     switch (look_ahead_->type) {
-        case TokenType::IDENTIFIER : return parse_assignment();
+        case TokenType::FUNCTION : return parse_function_def();
+        case TokenType::IDENTIFIER : return parse_identifier();
+        case TokenType::LEFT_BRACE : return parse_block();
         case TokenType::PRINT : return parse_print();
         default: throw runtime_error("Unexpected token: " + look_ahead_->lexeme);
     }
 }
 
-unique_ptr<StatementNode> Parser::parse_assignment() {
+unique_ptr<StatementNode> Parser::parse_identifier() {
     Token identifier = eat(TokenType::IDENTIFIER);
+    switch (look_ahead_->type) {
+        case TokenType::LEFT_PAREN : return parse_function_call(identifier);
+        case TokenType::ASSIGN : return parse_assignment(identifier);
+        default: throw runtime_error("Unexpected token: " + look_ahead_->lexeme);
+    }
+}
+
+unique_ptr<StatementNode> Parser::parse_assignment(Token& identifier) {
     eat(TokenType::ASSIGN);
     auto expression = parse_expression();
     eat(TokenType::SEMICOLON);
@@ -52,7 +63,6 @@ unique_ptr<ExpressionNode> Parser::parse_expression() {
 
 unique_ptr<ExpressionNode> Parser::parse_term() {
     auto left = parse_factor();
-    // TODO -> Fix getting the token dynamically cuz now the parser expects plus first
     while (match(TokenType::PLUS) || match(TokenType::MINUS)) {
         Token op = look_ahead_.value(); eat(op.type);
         auto right = parse_factor();
@@ -63,7 +73,6 @@ unique_ptr<ExpressionNode> Parser::parse_term() {
 
 unique_ptr<ExpressionNode> Parser::parse_factor() {
     auto left = parse_primary();
-    // TODO -> Fix getting the token dynamically cuz now the parser expects multiply first
     while (match(TokenType::MULTIPLY) || match(TokenType::DIVIDE)) {
         Token op = look_ahead_.value(); eat(op.type);
         auto right = parse_primary();
@@ -122,6 +131,49 @@ vector<unique_ptr<ExpressionNode>> Parser::parse_print_args() {
         }
     }
     return args;
+}
+
+
+unique_ptr<FunctionDefNode> Parser::parse_function_def() {
+    eat(TokenType::FUNCTION);
+    Token name = eat(TokenType::IDENTIFIER);
+    vector<string> parameters;
+    eat(TokenType::LEFT_PAREN);
+    if (!match(TokenType::RIGHT_PAREN)) {
+        do {
+            Token parameter = eat(TokenType::IDENTIFIER);
+            parameters.push_back(parameter.lexeme);
+        } while (match(TokenType::COMMA));
+    }
+    eat(TokenType::RIGHT_PAREN);
+    auto body = parse_block();
+    return make_unique<FunctionDefNode>
+        (std::move(name.lexeme), std::move(parameters), std::move(body), name.line, name.column);
+}
+
+unique_ptr<FunctionCallNode> Parser::parse_function_call(Token& name) {
+    vector<unique_ptr<ExpressionNode>> arguments;
+    eat(TokenType::LEFT_PAREN);
+    if (!match(TokenType::RIGHT_PAREN)) {
+        arguments.push_back(parse_expression());
+        while (match(TokenType::COMMA)) {
+            eat(TokenType::COMMA);
+            arguments.push_back(parse_expression());
+        }
+    }
+    eat(TokenType::RIGHT_PAREN);
+    eat(TokenType::SEMICOLON);
+    return make_unique<FunctionCallNode>(std::move(name.lexeme), std::move(arguments), name.line, name.column);
+}
+
+unique_ptr<BlockNode> Parser::parse_block() {
+    vector<unique_ptr<StatementNode>> statements;
+    Token brace = eat(TokenType::LEFT_BRACE);
+    while (!match(TokenType::RIGHT_BRACE)) {
+        statements.push_back(parse_statement());
+    }
+    eat(TokenType::RIGHT_BRACE);
+    return make_unique<BlockNode>(std::move(statements), brace.line, brace.column);
 }
 
 

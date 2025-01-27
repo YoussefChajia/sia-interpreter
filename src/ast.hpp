@@ -23,6 +23,19 @@ public:
     virtual ~ProgramNode() = default;
 };
 
+class BlockNode : public StatementNode {
+public:
+    vector<unique_ptr<StatementNode>> statements;
+
+    explicit BlockNode(vector<unique_ptr<StatementNode>> statements, unsigned int ln, unsigned int col)
+        : statements(std::move(statements)) {
+            line = ln;
+            column = col;
+        }
+
+    virtual ~BlockNode() = default;
+};
+
 class AssignmentNode : public StatementNode {
 public:
     string identifier;
@@ -98,7 +111,7 @@ public:
     double value;
 
     explicit NumberLiteral(double value, unsigned int line, unsigned int column)
-        : value(std::move(value)) {
+        : value(value) {
             this->line = line;
             this->column = column;
         }
@@ -109,10 +122,53 @@ class PrintNode : public StatementNode {
 public:
     vector<unique_ptr<ExpressionNode>> arguments;
 
-    PrintNode(vector<unique_ptr<ExpressionNode>> args, unsigned int ln, unsigned int col)
+    explicit PrintNode(vector<unique_ptr<ExpressionNode>> args, unsigned int ln, unsigned int col)
         : arguments(std::move(args)) {
             line = ln;
             column = col;
         }
+
+    virtual ~PrintNode() = default;
 };
 
+class FunctionDefNode : public StatementNode {
+public:
+    string name;
+    vector<string> parameters;
+    unique_ptr<BlockNode> body;
+
+    explicit FunctionDefNode(string name, vector<string> parameters, unique_ptr<BlockNode> body, unsigned int ln, unsigned int col)
+        : name(std::move(name)), parameters(std::move(parameters)), body(std::move(body)) {
+            line = ln;
+            column = col;
+        }
+
+    virtual ~FunctionDefNode() = default;
+};
+
+class FunctionCallNode : public StatementNode {
+public:
+    string name;
+    vector<unique_ptr<ExpressionNode>> arguments;
+
+    explicit FunctionCallNode(string name, vector<unique_ptr<ExpressionNode>> arguments, unsigned int ln, unsigned int col)
+        : name(std::move(name)), arguments(std::move(arguments)) {
+            line = ln;
+            column = col;
+        }
+
+    virtual ~FunctionCallNode() = default;
+};
+
+class ReturnNode : public StatementNode {
+public:
+    unique_ptr<ExpressionNode> expression;
+
+    explicit ReturnNode(unique_ptr<ExpressionNode> expression, unsigned int line, unsigned int column)
+        : expression(std::move(expression)) {
+            this->line = line;
+            this->column = column;
+        }
+
+    virtual ~ReturnNode() = default;
+};

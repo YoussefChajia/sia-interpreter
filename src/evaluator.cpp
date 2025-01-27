@@ -1,4 +1,3 @@
-#include <exception>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -11,10 +10,14 @@
 
 
 using namespace std;
-// current possible types in the language
-using my_variant = variant<double, string>;
 
-Evaluator::Evaluator() {}
+Evaluator::Evaluator() {
+    push_scope();
+}
+
+Evaluator::~Evaluator() {
+    pop_scope();
+}
 
 void Evaluator::evaluate(const ProgramNode& program) {
     for (const auto& statement : program.statements) {
@@ -22,11 +25,28 @@ void Evaluator::evaluate(const ProgramNode& program) {
     }
 }
 
+void Evaluator::evaluate_block(const BlockNode& block) {
+    push_scope();
+    try {
+        for (const auto& statement : block.statements) {
+            evaluate_statement(*statement);
+        }
+    } catch (const runtime_error& e) {
+        pop_scope();
+        throw runtime_error(error_message("Error inside block", block.line, block.column));
+    }
+    pop_scope();
+}
+
 void Evaluator::evaluate_statement(const StatementNode& statement) {
     // returns either a valid or null pointer
-    if (auto assignment = dynamic_cast<const AssignmentNode*>(&statement)) {
+    if (auto block = dynamic_cast<const BlockNode*>(&statement)) {
+        evaluate_block(*block);
+    } else if (auto assignment = dynamic_cast<const AssignmentNode*>(&statement)) {
         my_variant value = evaluate_expression(*assignment->expression);
-        symbol_table_[assignment->identifier] = value;
+        set_variable(assignment->identifier, value);
+    } else if (auto function_call = dynamic_cast<const FunctionCallNode*>(&statement)) {
+        throw runtime_error(error_message("Function calls not yet implemented", function_call->line, function_call->column));
     } else if (auto print = dynamic_cast<const PrintNode*>(&statement)) {
         string out;
         for (const auto& argument : print->arguments) {
@@ -46,9 +66,7 @@ my_variant Evaluator::evaluate_expression(const ExpressionNode& expression) {
     } else if (auto number = dynamic_cast<const NumberLiteral*>(&expression)) {
         return my_variant(number->value);
     } else if (auto var = dynamic_cast<const VariableNode*>(&expression)) {
-        auto identifier = symbol_table_.find(var->identifier);
-        if (identifier == symbol_table_.end()) throw runtime_error("Undefined variable " + var->identifier);
-        return identifier->second;
+        return get_variable(var->identifier);
     } else if (auto binary = dynamic_cast<const BinaryOpNode*>(&expression)) {
         my_variant left = evaluate_expression(*binary->left);
         my_variant right = evaluate_expression(*binary->right);
@@ -100,4 +118,18 @@ string Evaluator::error_message(const string& message, unsigned int line, unsign
     stringstream string_stream;
     cout << "Error at " << line << ":" << column << " - " << message;
     return string_stream.str();
+}
+
+my_variant Evaluator::get_variable(const string& name) {
+    for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
+        auto var = scope->find(name);
+        if (var != scope->end()) {
+            return var->second;
+        }
+    }
+    throw runtime_error("Undefined variable " + name);
+}
+
+void Evaluator::set_variable(const string& name, const my_variant& value) {
+    scopes_.back()[name] = value;
 }

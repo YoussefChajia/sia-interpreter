@@ -7,16 +7,15 @@ using namespace std;
 
 Lexer::Lexer() {
     spec_ = {
-        // Whitespaces
-        // {regex(R"(^\s+)"), nullopt},
+        // whitespaces
         {regex(R"(^[ \t\v\f]+)"), nullopt},
         {regex(R"(^(\r\n|\n|\r))"), TokenType::NEWLINE},
 
-        // Comments
+        // comments
         {regex(R"(^\/\/.*)"), nullopt},
         {regex(R"(^\/\*[\s\S]*?\*\/)"), nullopt},
 
-        // Symbols
+        // symbols
         {regex(R"(^;)"), TokenType::SEMICOLON},
         {regex(R"(^\{)"), TokenType::LEFT_BRACE},
         {regex(R"(^\})"), TokenType::RIGHT_BRACE},
@@ -30,16 +29,19 @@ Lexer::Lexer() {
         {regex(R"(^\))"), TokenType::RIGHT_PAREN},
         {regex(R"(^,)"), TokenType::COMMA},
 
-        // Methods
+        // keywords
+        // '\b' ensures that the keyword is not matched if it's a part of a larger word
+        {regex(R"(^function\b)"), TokenType::FUNCTION},
         {regex(R"(^print\b)"), TokenType::PRINT},
+        {regex(R"(^return\b)"), TokenType::RETURN},
 
-        // Identifiers
+        // identifiers
         {regex(R"(^[a-zA-Z][a-zA-Z0-9_]*)"), TokenType::IDENTIFIER},
 
-        // Assignments
+        // assignments
         {regex(R"(^=)"), TokenType::ASSIGN},
 
-        // Literals
+        // literals
         {regex(R"(^\d+\.?\d*)"), TokenType::NUMBER},
         {regex(R"(^"[^"]*")"), TokenType::STRING}
     };

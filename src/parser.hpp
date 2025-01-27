@@ -23,12 +23,17 @@ private:
     unique_ptr<ProgramNode> parse_program();
 
     unique_ptr<StatementNode> parse_statement();
-    unique_ptr<StatementNode> parse_assignment();
+    unique_ptr<StatementNode> parse_identifier();
+    unique_ptr<StatementNode> parse_assignment(Token& identifier);
+    unique_ptr<FunctionCallNode> parse_function_call(Token& identifier);
 
     unique_ptr<ExpressionNode> parse_expression();
     unique_ptr<ExpressionNode> parse_term();
     unique_ptr<ExpressionNode> parse_factor();
     unique_ptr<ExpressionNode> parse_primary();
+
+    unique_ptr<FunctionDefNode> parse_function_def();
+    unique_ptr<BlockNode> parse_block();
 
     unique_ptr<StatementNode> parse_print();
     vector<unique_ptr<ExpressionNode>> parse_print_args();

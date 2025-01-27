@@ -3,7 +3,7 @@
 all: build
 
 build:
-	@cd build && cmake ../ && make && clear
+	@cd build && cmake ../ && make
 
 clean:
 	@rm -rf build/*
