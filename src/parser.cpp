@@ -1,6 +1,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "ast.hpp"
 #include "parser.hpp"
@@ -33,11 +34,24 @@ unique_ptr<ProgramNode> Parser::parse_program() {
 unique_ptr<StatementNode> Parser::parse_statement() {
     switch (look_ahead_->type) {
         case TokenType::FUNCTION : return parse_function_def();
+        case TokenType::LOOP : return parse_loop();
         case TokenType::IDENTIFIER : return parse_identifier();
         case TokenType::LEFT_BRACE : return parse_block();
         case TokenType::PRINT : return parse_print();
         default: throw runtime_error("Unexpected token: " + look_ahead_->lexeme);
     }
+}
+
+unique_ptr<LoopNode> Parser::parse_loop() {
+    unique_ptr<ExpressionNode> argument;
+    Token loop = eat(TokenType::LOOP);
+    eat(TokenType::LEFT_PAREN);
+    if (!match(TokenType::RIGHT_PAREN)) {
+        argument = parse_expression();
+    }
+    eat(TokenType::RIGHT_PAREN);
+    auto body = parse_block();
+    return make_unique<LoopNode>(std::move(argument), std::move(body), loop.line, loop.column);
 }
 
 unique_ptr<StatementNode> Parser::parse_identifier() {
@@ -89,9 +103,13 @@ unique_ptr<ExpressionNode> Parser::parse_primary() {
             eat(TokenType::RIGHT_PAREN);
             return expression;
         }
-        case TokenType::IDENTIFIER : {
-            Token identifier = eat(TokenType::IDENTIFIER);
-            return make_unique<VariableNode>(identifier.lexeme, identifier.line, identifier.column);
+        case TokenType::TRUE : {
+            Token token = eat(TokenType::TRUE);
+            return make_unique<BoolLiteral>(true, token.line, token.column);
+        }
+        case TokenType::FALSE : {
+            Token token = eat(TokenType::FALSE);
+            return make_unique<BoolLiteral>(false, token.line, token.column);
         }
         case TokenType::STRING : {
             Token string = eat(TokenType::STRING);
@@ -106,6 +124,10 @@ unique_ptr<ExpressionNode> Parser::parse_primary() {
             Token op = eat(TokenType::MINUS);
             auto expression = parse_primary();
             return make_unique<UnaryOpNode>(op.type, std::move(expression), op.line, op.column);
+        }
+        case TokenType::IDENTIFIER : {
+            Token identifier = eat(TokenType::IDENTIFIER);
+            return make_unique<VariableNode>(identifier.lexeme, identifier.line, identifier.column);
         }
         default: throw runtime_error("Unexpected primary token: " + look_ahead_->lexeme);
     }
@@ -184,6 +206,9 @@ string Parser::token_type_to_string(const TokenType& token_type) {
         {NUMBER, "NUMBER"},
         {STRING, "STRING"},
         {PRINT, "PRINT"},
+        {FUNCTION, "FUNCTION"},
+        {RETURN, "RETURN"},
+        {LOOP, "LOOP"},
         {SEMICOLON, "SEMICOLON"},
         {LEFT_BRACE, "LEFT_BRACE"},
         {RIGHT_BRACE, "RIGHT_BRACE"},

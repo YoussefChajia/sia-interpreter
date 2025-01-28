@@ -8,9 +8,9 @@ enum TokenType {
     // Spaces
     NEWLINE,
     // Literals
-    NUMBER, STRING,
+    NUMBER, STRING, TRUE, FALSE,
     // keywords
-    PRINT, FUNCTION, RETURN,
+    PRINT, FUNCTION, RETURN, LOOP,
     // Symbols
     LEFT_BRACE, RIGHT_BRACE, LEFT_PAREN, RIGHT_PAREN,
     ASSIGN, COMMA, SEMICOLON, 

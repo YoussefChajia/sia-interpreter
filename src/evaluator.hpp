@@ -13,7 +13,7 @@ using namespace std;
 
 
 // current possible types in the language
-using my_variant = variant<double, string>;
+using my_variant = variant<double, string, bool>;
 
 class Evaluator {
 public:
@@ -40,6 +40,8 @@ private:
     void evaluate_block(const BlockNode& block);
     void evaluate_statement(const StatementNode& statement);
     void evaluate_function_call(const FunctionCallNode& call);
+
+    void evaluate_loop(const LoopNode& loop);
 
     my_variant evaluate_expression(const ExpressionNode& expression);
     my_variant evaluate_binary_op(TokenType op, const my_variant& left, const my_variant& right, unsigned int line, unsigned int column);

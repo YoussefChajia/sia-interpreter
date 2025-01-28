@@ -25,6 +25,7 @@ private:
     unique_ptr<StatementNode> parse_statement();
     unique_ptr<StatementNode> parse_identifier();
     unique_ptr<StatementNode> parse_assignment(Token& identifier);
+    unique_ptr<LoopNode> parse_loop();
     unique_ptr<FunctionCallNode> parse_function_call(Token& identifier);
 
     unique_ptr<ExpressionNode> parse_expression();

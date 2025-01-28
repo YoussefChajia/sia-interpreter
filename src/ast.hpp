@@ -118,6 +118,18 @@ public:
     virtual ~NumberLiteral() = default;
 };
 
+class BoolLiteral : public LiteralNode {
+public:
+    bool value;
+
+    explicit BoolLiteral(bool value, unsigned int line, unsigned int column)
+        : value(value) {
+            this->line = line;
+            this->column = column;
+        }
+    virtual ~BoolLiteral() = default;
+};
+
 class PrintNode : public StatementNode {
 public:
     vector<unique_ptr<ExpressionNode>> arguments;
@@ -172,3 +184,18 @@ public:
 
     virtual ~ReturnNode() = default;
 };
+
+class LoopNode : public StatementNode {
+public:
+    unique_ptr<ExpressionNode> argument;
+    unique_ptr<BlockNode> body;
+
+    explicit LoopNode(unique_ptr<ExpressionNode> argument, unique_ptr<BlockNode> body, unsigned int ln, unsigned int col)
+        : argument(std::move(argument)), body(std::move(body)) {
+            line = ln;
+            column = col;
+        }
+
+    virtual ~LoopNode() = default;
+};
+

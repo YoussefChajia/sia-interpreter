@@ -1,4 +1,5 @@
 #include <optional>
+#include <iostream>
 
 #include "lexer.hpp"
 #include "token.hpp"
@@ -34,16 +35,19 @@ Lexer::Lexer() {
         {regex(R"(^function\b)"), TokenType::FUNCTION},
         {regex(R"(^print\b)"), TokenType::PRINT},
         {regex(R"(^return\b)"), TokenType::RETURN},
-
-        // identifiers
-        {regex(R"(^[a-zA-Z][a-zA-Z0-9_]*)"), TokenType::IDENTIFIER},
+        {regex(R"(^loop\b)"), TokenType::LOOP},
 
         // assignments
         {regex(R"(^=)"), TokenType::ASSIGN},
 
         // literals
         {regex(R"(^\d+\.?\d*)"), TokenType::NUMBER},
-        {regex(R"(^"[^"]*")"), TokenType::STRING}
+        {regex(R"(^"[^"]*")"), TokenType::STRING},
+        {regex(R"(^true\b)"), TokenType::TRUE},
+        {regex(R"(^false\b)"), TokenType::FALSE},
+
+        // identifiers
+        {regex(R"(^[a-zA-Z][a-zA-Z0-9_]*)"), TokenType::IDENTIFIER},
     };
 }
 

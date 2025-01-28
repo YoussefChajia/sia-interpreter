@@ -44,16 +44,20 @@ void Evaluator::evaluate_statement(const StatementNode& statement) {
     // returns either a valid or null pointer
     if (auto block = dynamic_cast<const BlockNode*>(&statement)) {
         evaluate_block(*block);
-    } else if (auto function_def = dynamic_cast<const FunctionDefNode*>(&statement)) {
-        functions_[function_def->name] = {
-            function_def->parameters,
-            function_def->body.get()
-        };
+
     } else if (auto assignment = dynamic_cast<const AssignmentNode*>(&statement)) {
         my_variant value = evaluate_expression(*assignment->expression);
         set_variable(assignment->identifier, value);
+
+    } else if (auto loop = dynamic_cast<const LoopNode*>(&statement)) {
+        evaluate_loop(*loop);
+
+    } else if (auto function_def = dynamic_cast<const FunctionDefNode*>(&statement)) {
+        functions_[function_def->name] = { function_def->parameters, function_def->body.get() };
+
     } else if (auto function_call = dynamic_cast<const FunctionCallNode*>(&statement)) {
         evaluate_function_call(*function_call);
+
     } else if (auto print = dynamic_cast<const PrintNode*>(&statement)) {
         string out;
         for (const auto& argument : print->arguments) {
@@ -62,6 +66,7 @@ void Evaluator::evaluate_statement(const StatementNode& statement) {
         }
         if (!out.empty()) out.pop_back();
         cout << out << endl;
+
     } else {
         throw runtime_error("Unknown statement");
     }
@@ -94,6 +99,21 @@ void Evaluator::evaluate_function_call(const FunctionCallNode& call) {
     pop_scope();
 }
 
+void Evaluator::evaluate_loop(const LoopNode& loop) {
+    my_variant expression = evaluate_expression(*loop.argument);
+    push_scope();
+    if (double *number = get_if<double>(&expression)) {
+        for (auto i = 0; i < (int)*number; ++i) {
+            evaluate_block(*loop.body);
+        }
+    } else if (bool *condition = get_if<bool>(&expression)) {
+        while (*condition) {
+            evaluate_block(*loop.body);
+        }
+    }
+    pop_scope();
+}
+
 my_variant Evaluator::evaluate_expression(const ExpressionNode& expression) {
     if (auto string = dynamic_cast<const StringLiteral*>(&expression)) {
         return my_variant(string->value);
@@ -101,6 +121,8 @@ my_variant Evaluator::evaluate_expression(const ExpressionNode& expression) {
         return my_variant(number->value);
     } else if (auto var = dynamic_cast<const VariableNode*>(&expression)) {
         return get_variable(var->identifier);
+    } else if (auto bool_value = dynamic_cast<const BoolLiteral*>(&expression)) {
+        return my_variant(bool_value->value);
     } else if (auto binary = dynamic_cast<const BinaryOpNode*>(&expression)) {
         my_variant left = evaluate_expression(*binary->left);
         my_variant right = evaluate_expression(*binary->right);
