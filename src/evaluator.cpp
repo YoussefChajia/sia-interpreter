@@ -1,8 +1,10 @@
+#include <cstddef>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <variant>
+#include <vector>
 
 #include "ast.hpp"
 #include "token.hpp"
@@ -42,11 +44,16 @@ void Evaluator::evaluate_statement(const StatementNode& statement) {
     // returns either a valid or null pointer
     if (auto block = dynamic_cast<const BlockNode*>(&statement)) {
         evaluate_block(*block);
+    } else if (auto function_def = dynamic_cast<const FunctionDefNode*>(&statement)) {
+        functions_[function_def->name] = {
+            function_def->parameters,
+            function_def->body.get()
+        };
     } else if (auto assignment = dynamic_cast<const AssignmentNode*>(&statement)) {
         my_variant value = evaluate_expression(*assignment->expression);
         set_variable(assignment->identifier, value);
     } else if (auto function_call = dynamic_cast<const FunctionCallNode*>(&statement)) {
-        throw runtime_error(error_message("Function calls not yet implemented", function_call->line, function_call->column));
+        evaluate_function_call(*function_call);
     } else if (auto print = dynamic_cast<const PrintNode*>(&statement)) {
         string out;
         for (const auto& argument : print->arguments) {
@@ -58,6 +65,33 @@ void Evaluator::evaluate_statement(const StatementNode& statement) {
     } else {
         throw runtime_error("Unknown statement");
     }
+}
+
+void Evaluator::evaluate_function_call(const FunctionCallNode& call) {
+    auto it = functions_.find(call.name);
+    if (it == functions_.end()) {
+        throw runtime_error(error_message("Undefined function : " + call.name, call.line, call.column));
+    }
+
+    const auto& function = it->second;
+    if (call.arguments.size() != function.parameters.size()) {
+        throw runtime_error(error_message("Argument count mismatch", call.line, call.column));
+    }
+
+    vector<my_variant> args;
+    for (const auto& arg : call.arguments) {
+        args.push_back(evaluate_expression(*arg));
+    }
+
+    push_scope();
+
+    for (size_t i = 0; i < args.size(); ++i) {
+        set_variable(function.parameters[i], args[i]);
+    }
+
+    evaluate_block(*function.body);
+
+    pop_scope();
 }
 
 my_variant Evaluator::evaluate_expression(const ExpressionNode& expression) {
