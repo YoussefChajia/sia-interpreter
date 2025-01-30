@@ -1,6 +1,6 @@
 <program> ::= { <statement> ";" }
 
-<statement_block> ::= "{" { <statement> } "}"
+<block> ::= "{" { <statement> ";" } "}"
 
 <statement> ::= <variable_declaration>
             | <assignment>
@@ -8,43 +8,36 @@
             | <control_structure>
             | <function_declaration>
 
+<!-- is the variable declaration actually needed? -->
+
 <variable_declaration> ::= <identifier> [ "=" <expression> ]
 
 <assignment> ::= <identifier> "=" <expression>
 
-<expression> ::= <literal> 
-               | <identifier>
-               | <binary_operation>
-               | <unary_operation>
-               | <function_call>
+<expression> ::= <literal> | <identifier> | <binary_operation> | <unary_operation> | <function_call>
 
 <binary_operation> ::= <expression> <binary_operator> <expression>
-<binary_operator> ::= "+" | "-" | "*" | "**" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&&" | "||"
+<binary_operator> ::= "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&&" | "||"
 
 <unary_operation> ::= <unary_operator> <expression>
 <unary_operator> ::= "-" | "!"
 
-<literal> ::= <integer> 
-            | <float> 
-            | <string> 
-            | <boolean>
+<literal> ::= <integer> | <float> | <string> | <boolean>
 
 <integer> ::= [ "-" ] <digit> { <digit> }
-<float> ::= [ "-" ] <digit> { <digit> } "." <digit> { <digit> }
+<double> ::= [ "-" ] <digit> { <digit> } "." <digit> { <digit> }
 <string> ::= "\"" { <character> } "\""
 <boolean> ::= "true" | "false"
 
-<control_structure> ::= <if_statement> 
-                      | <while_loop> 
-                      | <return_statement>
+<control_structure> ::= <if_statement> | <loop> | <return_statement>
 
-<if_statement> ::= "if" <expression> "then" <statement> [ "else" <statement> ] "end"
+<if_statement> ::= "if" "(" <expression> ")" "{" <statement> [ "}" "else" "{" <statement> ] "}"
 
-<while_loop> ::= "while" <expression> "do" <statement> "end"
+<loop> ::= "loop" "(" <expression> ")" "{" <statement> "}"
 
 <return_statement> ::= "return" <expression>
 
-<function_declaration> ::= "function" <identifier> "(" [ <parameter_list> ] ")" <statement> "end"
+<function_declaration> ::= "function" <identifier> "(" [ <parameter_list> ] ")" "{" <statement> "}"
 <parameter_list> ::= <identifier> { "," <identifier> }
 
 <function_call> ::= <identifier> "(" [ <argument_list> ] ")"

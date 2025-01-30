@@ -158,6 +158,8 @@ public:
     virtual ~FunctionDefNode() = default;
 };
 
+// TODO : change function call to ExpressionNode
+//
 class FunctionCallNode : public StatementNode {
 public:
     string name;
