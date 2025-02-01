@@ -15,6 +15,16 @@ using namespace std;
 
 Evaluator::Evaluator() {
     push_scope();
+
+    // [] -> captures variables to use inside the lambda function
+    native_functions_["print"] = [this](const vector<my_variant>& arguments) {
+        string out;
+        for (const auto& argument : arguments) {
+            out += this->variant_to_string(argument) + " ";
+        }
+        if (!out.empty()) out.pop_back();
+        cout << out << endl;
+    };
 }
 
 Evaluator::~Evaluator() {
@@ -58,21 +68,22 @@ void Evaluator::evaluate_statement(const StatementNode& statement) {
     } else if (auto function_call = dynamic_cast<const FunctionCallNode*>(&statement)) {
         evaluate_function_call(*function_call);
 
-    } else if (auto print = dynamic_cast<const PrintNode*>(&statement)) {
-        string out;
-        for (const auto& argument : print->arguments) {
-            my_variant value = evaluate_expression(*argument);
-            out += this->variant_to_string(value) + " ";
-        }
-        if (!out.empty()) out.pop_back();
-        cout << out << endl;
-
     } else {
         throw runtime_error("Unknown statement");
     }
 }
 
 void Evaluator::evaluate_function_call(const FunctionCallNode& call) {
+    auto native_it = native_functions_.find(call.name);
+    if (native_it != native_functions_.end()) {
+        vector<my_variant> arguments;
+        for (const auto& argument  : call.arguments) {
+            arguments.push_back(evaluate_expression(*argument));
+        }
+        native_it->second(arguments);
+        return;
+    }
+
     auto it = functions_.find(call.name);
     if (it == functions_.end()) {
         throw runtime_error(error_message("Undefined function : " + call.name, call.line, call.column));

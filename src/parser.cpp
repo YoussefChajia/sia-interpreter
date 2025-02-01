@@ -36,7 +36,6 @@ unique_ptr<StatementNode> Parser::parse_statement() {
         case TokenType::LOOP : return parse_loop();
         case TokenType::IDENTIFIER : return parse_identifier();
         case TokenType::LEFT_BRACE : return parse_block();
-        case TokenType::PRINT : return parse_print();
         default: throw runtime_error("Unexpected token: " + look_ahead_->lexeme);
     }
 }
@@ -133,28 +132,6 @@ unique_ptr<ExpressionNode> Parser::parse_primary() {
 }
 
 
-unique_ptr<StatementNode> Parser::parse_print() {
-    Token print = eat(TokenType::PRINT);
-    eat(TokenType::LEFT_PAREN);
-    auto args = parse_print_args();
-    eat(TokenType::RIGHT_PAREN);
-    eat(TokenType::SEMICOLON);
-    return make_unique<PrintNode>(std::move(args), print.line, print.column);
-}
-
-vector<unique_ptr<ExpressionNode>> Parser::parse_print_args() {
-    vector<unique_ptr<ExpressionNode>> args;
-    if (!match(TokenType::RIGHT_PAREN)) {
-        args.push_back(parse_expression());
-        while (match(TokenType::COMMA)) {
-            eat(TokenType::COMMA);
-            args.push_back(parse_expression());
-        }
-    }
-    return args;
-}
-
-
 unique_ptr<FunctionDefNode> Parser::parse_function_def() {
     eat(TokenType::FUNCTION);
     Token name = eat(TokenType::IDENTIFIER);
@@ -204,7 +181,6 @@ string Parser::token_type_to_string(const TokenType& token_type) {
         {NEWLINE, "NEWLINE"},
         {NUMBER, "NUMBER"},
         {STRING, "STRING"},
-        {PRINT, "PRINT"},
         {FUNCTION, "FUNCTION"},
         {RETURN, "RETURN"},
         {LOOP, "LOOP"},

@@ -33,7 +33,6 @@ Lexer::Lexer() {
         // keywords
         // '\b' ensures that the keyword is not matched if it's a part of a larger word
         {regex(R"(^function\b)"), TokenType::FUNCTION},
-        {regex(R"(^print\b)"), TokenType::PRINT},
         {regex(R"(^return\b)"), TokenType::RETURN},
         {regex(R"(^loop\b)"), TokenType::LOOP},
 

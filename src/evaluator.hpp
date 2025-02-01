@@ -1,6 +1,6 @@
 #pragma once
 
-#include <memory>
+#include <functional>
 #include <unordered_map>
 #include <variant>
 #include <string>
@@ -14,6 +14,8 @@ using namespace std;
 
 // current possible types in the language
 using my_variant = variant<double, string, bool>;
+// TODO : change the return type when you implement return
+using native_function = function<void(const vector<my_variant>&)>;
 
 class Evaluator {
 public:
@@ -30,6 +32,8 @@ private:
     unordered_map<string, my_variant> symbol_table_;
     vector<unordered_map<string, my_variant>> scopes_;
     unordered_map<string, function_def> functions_;
+
+    unordered_map<string, native_function> native_functions_;
 
     void push_scope() { scopes_.push_back(unordered_map<string, my_variant>()); }
     void pop_scope() { if (scopes_.size() > 1) scopes_.pop_back(); }

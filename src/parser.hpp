@@ -36,8 +36,8 @@ private:
     unique_ptr<FunctionDefNode> parse_function_def();
     unique_ptr<BlockNode> parse_block();
 
-    unique_ptr<StatementNode> parse_print();
-    vector<unique_ptr<ExpressionNode>> parse_print_args();
+    // unique_ptr<StatementNode> parse_print();
+    // vector<unique_ptr<ExpressionNode>> parse_print_args();
 
     Token eat(const TokenType& token_type);
     bool match(const TokenType& token_type);

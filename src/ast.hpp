@@ -130,19 +130,6 @@ public:
     virtual ~BoolLiteral() = default;
 };
 
-class PrintNode : public StatementNode {
-public:
-    vector<unique_ptr<ExpressionNode>> arguments;
-
-    explicit PrintNode(vector<unique_ptr<ExpressionNode>> args, unsigned int ln, unsigned int col)
-        : arguments(std::move(args)) {
-            line = ln;
-            column = col;
-        }
-
-    virtual ~PrintNode() = default;
-};
-
 class FunctionDefNode : public StatementNode {
 public:
     string name;

@@ -10,7 +10,7 @@ enum TokenType {
     // Literals
     NUMBER, STRING, TRUE, FALSE,
     // keywords
-    PRINT, FUNCTION, RETURN, LOOP,
+    FUNCTION, RETURN, LOOP,
     // Symbols
     LEFT_BRACE, RIGHT_BRACE, LEFT_PAREN, RIGHT_PAREN,
     ASSIGN, COMMA, SEMICOLON, 
