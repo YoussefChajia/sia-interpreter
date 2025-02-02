@@ -1,5 +1,6 @@
 #pragma once
 
+#include <exception>
 #include <functional>
 #include <unordered_map>
 #include <variant>
@@ -13,9 +14,9 @@ using namespace std;
 
 
 // current possible types in the language
-using my_variant = variant<double, string, bool>;
+using my_variant = variant<double, string, bool, monostate>;
 // TODO : change the return type when you implement return
-using native_function = function<void(const vector<my_variant>&)>;
+using native_function = function<void(const vector<my_variant>&, unsigned int line, unsigned int column)>;
 
 class Evaluator {
 public:
@@ -27,6 +28,11 @@ private:
     struct function_def {
         vector<string> parameters;
         const BlockNode* body;
+    };
+
+    struct return_exception : exception {
+        my_variant value;
+        explicit return_exception(my_variant value) : value(std::move(value)) {}
     };
 
     unordered_map<string, my_variant> symbol_table_;
@@ -43,7 +49,8 @@ private:
 
     void evaluate_block(const BlockNode& block);
     void evaluate_statement(const StatementNode& statement);
-    void evaluate_function_call(const FunctionCallNode& call);
+    my_variant evaluate_function_call(const FunctionCallNode& call);
+    void evaluate_expression_statment(const ExpressionStatementNode& expression_statement);
 
     void evaluate_loop(const LoopNode& loop);
 

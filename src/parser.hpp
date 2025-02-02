@@ -3,7 +3,6 @@
 #include <memory>
 #include <string>
 #include <optional>
-#include <vector>
 #include "ast.hpp"
 #include "lexer.hpp"
 
@@ -27,6 +26,7 @@ private:
     unique_ptr<StatementNode> parse_assignment(Token& identifier);
     unique_ptr<LoopNode> parse_loop();
     unique_ptr<FunctionCallNode> parse_function_call(Token& identifier);
+    unique_ptr<ReturnNode> parse_return();
 
     unique_ptr<ExpressionNode> parse_expression();
     unique_ptr<ExpressionNode> parse_term();
@@ -35,9 +35,6 @@ private:
 
     unique_ptr<FunctionDefNode> parse_function_def();
     unique_ptr<BlockNode> parse_block();
-
-    // unique_ptr<StatementNode> parse_print();
-    // vector<unique_ptr<ExpressionNode>> parse_print_args();
 
     Token eat(const TokenType& token_type);
     bool match(const TokenType& token_type);

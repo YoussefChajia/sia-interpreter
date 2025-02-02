@@ -145,9 +145,7 @@ public:
     virtual ~FunctionDefNode() = default;
 };
 
-// TODO : change function call to ExpressionNode
-//
-class FunctionCallNode : public StatementNode {
+class FunctionCallNode : public ExpressionNode {
 public:
     string name;
     vector<unique_ptr<ExpressionNode>> arguments;
@@ -159,6 +157,19 @@ public:
         }
 
     virtual ~FunctionCallNode() = default;
+};
+
+class ExpressionStatementNode : public StatementNode {
+public:
+    unique_ptr<ExpressionNode> expression;
+
+    explicit ExpressionStatementNode(unique_ptr<ExpressionNode> expression, unsigned int line, unsigned int column)
+        : expression(std::move(expression)) {
+            this->line = line;
+            this->column = column;
+        }
+
+    virtual ~ExpressionStatementNode() = default;
 };
 
 class ReturnNode : public StatementNode {

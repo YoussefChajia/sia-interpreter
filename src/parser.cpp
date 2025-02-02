@@ -34,10 +34,18 @@ unique_ptr<StatementNode> Parser::parse_statement() {
     switch (look_ahead_->type) {
         case TokenType::FUNCTION : return parse_function_def();
         case TokenType::LOOP : return parse_loop();
+        case TokenType::RETURN : return parse_return();
         case TokenType::IDENTIFIER : return parse_identifier();
         case TokenType::LEFT_BRACE : return parse_block();
         default: throw runtime_error("Unexpected token: " + look_ahead_->lexeme);
     }
+}
+
+unique_ptr<ReturnNode> Parser::parse_return() {
+    Token token = eat(TokenType::RETURN);
+    auto expression = parse_expression();
+    eat(TokenType::SEMICOLON);
+    return make_unique<ReturnNode>(std::move(expression), token.line, token.column);
 }
 
 unique_ptr<LoopNode> Parser::parse_loop() {
@@ -55,7 +63,11 @@ unique_ptr<LoopNode> Parser::parse_loop() {
 unique_ptr<StatementNode> Parser::parse_identifier() {
     Token identifier = eat(TokenType::IDENTIFIER);
     switch (look_ahead_->type) {
-        case TokenType::LEFT_PAREN : return parse_function_call(identifier);
+        case TokenType::LEFT_PAREN : {
+            auto function_call = parse_function_call(identifier);
+            if (match(TokenType::SEMICOLON)) eat(TokenType::SEMICOLON);
+            return make_unique<ExpressionStatementNode>(std::move(function_call), identifier.line, identifier.column);
+        }
         case TokenType::ASSIGN : return parse_assignment(identifier);
         default: throw runtime_error("Unexpected token: " + look_ahead_->lexeme);
     }
@@ -125,6 +137,7 @@ unique_ptr<ExpressionNode> Parser::parse_primary() {
         }
         case TokenType::IDENTIFIER : {
             Token identifier = eat(TokenType::IDENTIFIER);
+            if (match(TokenType::LEFT_PAREN)) return parse_function_call(identifier);
             return make_unique<VariableNode>(identifier.lexeme, identifier.line, identifier.column);
         }
         default: throw runtime_error("Unexpected primary token: " + look_ahead_->lexeme);
@@ -160,7 +173,7 @@ unique_ptr<FunctionCallNode> Parser::parse_function_call(Token& name) {
         }
     }
     eat(TokenType::RIGHT_PAREN);
-    eat(TokenType::SEMICOLON);
+    // eat(TokenType::SEMICOLON);
     return make_unique<FunctionCallNode>(std::move(name.lexeme), std::move(arguments), name.line, name.column);
 }
 
