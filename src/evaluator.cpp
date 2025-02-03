@@ -51,8 +51,8 @@ void Evaluator::evaluate(const ProgramNode& program) {
     }
 }
 
-void Evaluator::evaluate_block(const BlockNode& block) {
-    push_scope();
+void Evaluator::evaluate_block(const BlockNode& block, bool new_scope) {
+    if (new_scope) push_scope();
     try {
         for (const auto& statement : block.statements) {
             evaluate_statement(*statement);
@@ -61,13 +61,13 @@ void Evaluator::evaluate_block(const BlockNode& block) {
         pop_scope();
         throw runtime_error(error_message("Error inside block", block.line, block.column));
     }
-    pop_scope();
+    if (new_scope) pop_scope();
 }
 
 void Evaluator::evaluate_statement(const StatementNode& statement) {
     // returns either a valid or null pointer
     if (auto block = dynamic_cast<const BlockNode*>(&statement)) {
-        evaluate_block(*block);
+        evaluate_block(*block, true);
 
     } else if (auto assignment = dynamic_cast<const AssignmentNode*>(&statement)) {
         my_variant value = evaluate_expression(*assignment->expression);
@@ -134,7 +134,7 @@ my_variant Evaluator::evaluate_function_call(const FunctionCallNode& call) {
     }
 
     try {
-        evaluate_block(*function.body);
+        evaluate_block(*function.body, true);
     } catch (const return_exception& my_return) {
         pop_scope();
         return my_return.value;
@@ -146,17 +146,15 @@ my_variant Evaluator::evaluate_function_call(const FunctionCallNode& call) {
 
 void Evaluator::evaluate_loop(const LoopNode& loop) {
     my_variant expression = evaluate_expression(*loop.argument);
-    push_scope();
     if (double *number = get_if<double>(&expression)) {
         for (auto i = 0; i < (int)*number; ++i) {
-            evaluate_block(*loop.body);
+            evaluate_block(*loop.body, false);
         }
     } else if (bool *condition = get_if<bool>(&expression)) {
         while (*condition) {
-            evaluate_block(*loop.body);
+            evaluate_block(*loop.body, false);
         }
     }
-    pop_scope();
 }
 
 my_variant Evaluator::evaluate_expression(const ExpressionNode& expression) {
@@ -214,13 +212,19 @@ double Evaluator::get_number(const my_variant& value, unsigned int line, unsigne
 }
 
 string Evaluator::variant_to_string(const my_variant& value) {
-    if (holds_alternative<double>(value)) {
+    if (holds_alternative<monostate>(value)) {
+        return "null";
+    } else if (holds_alternative<double>(value)) {
         string str = to_string(get<double>(value));
         str.erase(str.find_last_not_of('0') + 1, string::npos);
         if (str.back() == '.') str.pop_back();
         return str;
+    } else if (holds_alternative<bool>(value)) {
+        return get<bool>(value) ? "true" : "false";
+    } else {
+        return get<string>(value);
     }
-    return get<string>(value);
+    throw runtime_error("Unknown expression");
 }
 
 string Evaluator::error_message(const string& message, unsigned int line, unsigned int column) {

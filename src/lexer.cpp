@@ -1,5 +1,5 @@
 #include <optional>
-#include <iostream>
+#include <string>
 
 #include "lexer.hpp"
 #include "token.hpp"
@@ -90,7 +90,7 @@ optional<Token> Lexer::get_next_token() {
         return Token{token_type.value(), lexeme, this->line_, this->column_};
     }
 
-    throw std::runtime_error("Unexpected token: " + std::string(1, input[0]));
+    throw runtime_error("Unexpected input: \"" + string(1, input[0]) + "\" at " + to_string(line_) + ", " + to_string(column_));
 }
 
 optional<string> Lexer::match(const regex& pattern, const string& str) {

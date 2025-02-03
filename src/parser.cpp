@@ -37,15 +37,19 @@ unique_ptr<StatementNode> Parser::parse_statement() {
         case TokenType::RETURN : return parse_return();
         case TokenType::IDENTIFIER : return parse_identifier();
         case TokenType::LEFT_BRACE : return parse_block();
-        default: throw runtime_error("Unexpected token: " + look_ahead_->lexeme);
+        default: throw runtime_error("Unexpected token: " + token_type_to_string(look_ahead_->type) + " at " + to_string(look_ahead_->line) + to_string(look_ahead_->column));
     }
 }
 
 unique_ptr<ReturnNode> Parser::parse_return() {
     Token token = eat(TokenType::RETURN);
-    auto expression = parse_expression();
+    if (!match(TokenType::SEMICOLON)) {
+        auto expression = parse_expression();
+        eat(TokenType::SEMICOLON);
+        return make_unique<ReturnNode>(std::move(expression), token.line, token.column);
+    }
     eat(TokenType::SEMICOLON);
-    return make_unique<ReturnNode>(std::move(expression), token.line, token.column);
+    return make_unique<ReturnNode>(std::move(nullptr), token.line, token.column);
 }
 
 unique_ptr<LoopNode> Parser::parse_loop() {
@@ -69,7 +73,7 @@ unique_ptr<StatementNode> Parser::parse_identifier() {
             return make_unique<ExpressionStatementNode>(std::move(function_call), identifier.line, identifier.column);
         }
         case TokenType::ASSIGN : return parse_assignment(identifier);
-        default: throw runtime_error("Unexpected token: " + look_ahead_->lexeme);
+        default: throw runtime_error("Unexpected token: " + token_type_to_string(look_ahead_->type) + " at " + to_string(look_ahead_->line) + to_string(look_ahead_->column));
     }
 }
 
@@ -140,7 +144,7 @@ unique_ptr<ExpressionNode> Parser::parse_primary() {
             if (match(TokenType::LEFT_PAREN)) return parse_function_call(identifier);
             return make_unique<VariableNode>(identifier.lexeme, identifier.line, identifier.column);
         }
-        default: throw runtime_error("Unexpected primary token: " + look_ahead_->lexeme);
+        default: throw runtime_error("Unexpected primary token: " + token_type_to_string(look_ahead_->type) + " at " + to_string(look_ahead_->line) + ", " + to_string(look_ahead_->column));
     }
 }
 
@@ -151,15 +155,17 @@ unique_ptr<FunctionDefNode> Parser::parse_function_def() {
     vector<string> parameters;
     eat(TokenType::LEFT_PAREN);
     if (!match(TokenType::RIGHT_PAREN)) {
-        do {
+        Token parameter = eat(TokenType::IDENTIFIER);
+        parameters.push_back(parameter.lexeme);
+        while (match(TokenType::COMMA)) {
+            eat(TokenType::COMMA);
             Token parameter = eat(TokenType::IDENTIFIER);
             parameters.push_back(parameter.lexeme);
-        } while (match(TokenType::COMMA));
+        }
     }
     eat(TokenType::RIGHT_PAREN);
     auto body = parse_block();
-    return make_unique<FunctionDefNode>
-        (std::move(name.lexeme), std::move(parameters), std::move(body), name.line, name.column);
+    return make_unique<FunctionDefNode>(std::move(name.lexeme), std::move(parameters), std::move(body), name.line, name.column);
 }
 
 unique_ptr<FunctionCallNode> Parser::parse_function_call(Token& name) {
@@ -215,11 +221,11 @@ string Parser::token_type_to_string(const TokenType& token_type) {
 
 Token Parser::eat(const TokenType& token_type) {
     if (!look_ahead_.has_value()) {
-        throw runtime_error("Unexpected end of input, expected: " + token_type_to_string(token_type));
+        throw runtime_error("Unexpected end of input - expected: " + token_type_to_string(token_type));
     }
 
     if (look_ahead_->type != token_type) {
-        throw runtime_error("Unexpected token: " + look_ahead_->lexeme + ", expected: " + token_type_to_string(token_type));
+        throw runtime_error("Unexpected token: " + token_type_to_string(look_ahead_->type) + " at " + to_string(look_ahead_->line) + ", " + to_string(look_ahead_->column) + " - expected: " + token_type_to_string(token_type));
     }
 
     Token token = look_ahead_.value();

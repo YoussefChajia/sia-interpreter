@@ -27,10 +27,10 @@ class BlockNode : public StatementNode {
 public:
     vector<unique_ptr<StatementNode>> statements;
 
-    explicit BlockNode(vector<unique_ptr<StatementNode>> statements, unsigned int ln, unsigned int col)
+    explicit BlockNode(vector<unique_ptr<StatementNode>> statements, unsigned int line, unsigned int column)
         : statements(std::move(statements)) {
-            line = ln;
-            column = col;
+            this->line = line;
+            this->column = column;
         }
 
     virtual ~BlockNode() = default;

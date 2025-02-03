@@ -47,7 +47,7 @@ private:
     my_variant get_variable(const string& name);
     void set_variable(const string& name, const my_variant& value);
 
-    void evaluate_block(const BlockNode& block);
+    void evaluate_block(const BlockNode& block, bool new_scope);
     void evaluate_statement(const StatementNode& statement);
     my_variant evaluate_function_call(const FunctionCallNode& call);
     void evaluate_expression_statment(const ExpressionStatementNode& expression_statement);
