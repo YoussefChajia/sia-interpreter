@@ -56,6 +56,7 @@ unique_ptr<LoopNode> Parser::parse_loop() {
     unique_ptr<ExpressionNode> argument;
     Token loop = eat(TokenType::LOOP);
     eat(TokenType::LEFT_PAREN);
+    // TODO : handle loop without an argument
     if (!match(TokenType::RIGHT_PAREN)) {
         argument = parse_expression();
     }
@@ -86,7 +87,19 @@ unique_ptr<StatementNode> Parser::parse_assignment(Token& identifier) {
 
 
 unique_ptr<ExpressionNode> Parser::parse_expression() {
-    return parse_term();
+    return parse_comparison();
+}
+
+unique_ptr<ExpressionNode> Parser::parse_comparison() {
+    auto left = parse_term();
+    while ( match(TokenType::LESS_THAN) || match(TokenType::GREATER_THAN) ||
+            match(TokenType::LESS_EQUAL) || match(TokenType::GREATER_EQUAL) ||
+            match(TokenType::EQUAL) || match(TokenType::NOT_EQUAL) ) {
+        Token op = look_ahead_.value(); eat(op.type);
+        auto right = parse_term();
+        left = make_unique<BinaryOpNode>(op.type, std::move(left), std::move(right), op.line, op.column);
+    }
+    return left;
 }
 
 unique_ptr<ExpressionNode> Parser::parse_term() {

@@ -20,24 +20,28 @@ Lexer::Lexer() {
         {regex(R"(^;)"), TokenType::SEMICOLON},
         {regex(R"(^\{)"), TokenType::LEFT_BRACE},
         {regex(R"(^\})"), TokenType::RIGHT_BRACE},
+        {regex(R"(^\()"), TokenType::LEFT_PAREN},
+        {regex(R"(^\))"), TokenType::RIGHT_PAREN},
+        {regex(R"(^,)"), TokenType::COMMA},
+
+        {regex(R"(^<=)"), TokenType::LESS_THAN},
+        {regex(R"(^>=)"), TokenType::GREATER_THAN},
+        {regex(R"(^==)"), TokenType::EQUAL},
+        {regex(R"(^!=)"), TokenType::NOT_EQUAL},
 
         {regex(R"(^\+)"), TokenType::PLUS},
         {regex(R"(^\-)"), TokenType::MINUS},
         {regex(R"(^\*)"), TokenType::MULTIPLY},
         {regex(R"(^\/)"), TokenType::DIVIDE},
 
-        {regex(R"(^\()"), TokenType::LEFT_PAREN},
-        {regex(R"(^\))"), TokenType::RIGHT_PAREN},
-        {regex(R"(^,)"), TokenType::COMMA},
+        {regex(R"(^<)"), TokenType::LESS_THAN},
+        {regex(R"(^>)"), TokenType::GREATER_THAN},
+        {regex(R"(^=)"), TokenType::ASSIGN},
 
         // keywords
-        // '\b' ensures that the keyword is not matched if it's a part of a larger word
-        {regex(R"(^function\b)"), TokenType::FUNCTION},
+        {regex(R"(^function\b)"), TokenType::FUNCTION}, // '\b' ensures that the keyword is not matched if it's a part of a larger word
         {regex(R"(^return\b)"), TokenType::RETURN},
         {regex(R"(^loop\b)"), TokenType::LOOP},
-
-        // assignments
-        {regex(R"(^=)"), TokenType::ASSIGN},
 
         // literals
         {regex(R"(^\d+\.?\d*)"), TokenType::NUMBER},
@@ -65,6 +69,8 @@ bool Lexer::is_EOF() const {
     return cursor_ == input_.length();
 }
 
+// TODO -> optimize looking thru spec_
+//
 optional<Token> Lexer::get_next_token() {
     if (!this->has_more_tokens()) return nullopt;
     const string input = input_.substr(cursor_);

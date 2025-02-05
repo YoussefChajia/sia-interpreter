@@ -3,18 +3,18 @@
 #include <string>
 
 enum TokenType {
-    // Identifiers
+    // identifiers
     IDENTIFIER,
-    // Spaces
+    // spaces
     NEWLINE,
-    // Literals
+    // literals
     NUMBER, STRING, TRUE, FALSE,
     // keywords
     FUNCTION, RETURN, LOOP,
-    // Symbols
-    LEFT_BRACE, RIGHT_BRACE, LEFT_PAREN, RIGHT_PAREN,
-    ASSIGN, COMMA, SEMICOLON, 
-    PLUS, MINUS, MULTIPLY, DIVIDE,
+    // symbols
+    LEFT_BRACE, RIGHT_BRACE, LEFT_PAREN, RIGHT_PAREN, ASSIGN, COMMA, SEMICOLON, 
+    // operators
+    PLUS, MINUS, MULTIPLY, DIVIDE, LESS_THAN, GREATER_THAN, LESS_EQUAL, GREATER_EQUAL, EQUAL, NOT_EQUAL,
 };
 
 struct Token {

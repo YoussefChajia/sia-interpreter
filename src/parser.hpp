@@ -29,6 +29,7 @@ private:
     unique_ptr<ReturnNode> parse_return();
 
     unique_ptr<ExpressionNode> parse_expression();
+    unique_ptr<ExpressionNode> parse_comparison();
     unique_ptr<ExpressionNode> parse_term();
     unique_ptr<ExpressionNode> parse_factor();
     unique_ptr<ExpressionNode> parse_primary();

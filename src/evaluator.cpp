@@ -188,15 +188,22 @@ my_variant Evaluator::evaluate_expression(const ExpressionNode& expression) {
 }
 
 my_variant Evaluator::evaluate_binary_op(TokenType op, const my_variant& left, const my_variant& right, unsigned int line, unsigned int column) {
-    double left_number = get_number(left, line, column);
-    double right_number = get_number(right, line, column);
+    double left_operand = get_number(left, line, column);
+    double right_operand = get_number(right, line, column);
     switch (op) {
-        case TokenType::PLUS : return left_number + right_number;
-        case TokenType::MINUS : return left_number - right_number;
-        case TokenType::MULTIPLY : return left_number * right_number;
-        case TokenType::DIVIDE : 
-            if (right_number == 0) throw runtime_error(error_message("Division by zero", line, column));
-            return left_number / right_number;
+        case TokenType::PLUS : return left_operand + right_operand;
+        case TokenType::MINUS : return left_operand - right_operand;
+        case TokenType::MULTIPLY : return left_operand * right_operand;
+        case TokenType::DIVIDE : {
+            if (right_operand == 0) throw runtime_error(error_message("Division by zero", line, column));
+            return left_operand / right_operand;
+        }
+        case TokenType::LESS_THAN : return left_operand < right_operand;
+        case TokenType::GREATER_THAN : return left_operand > right_operand;
+        case TokenType::LESS_EQUAL : return left_operand <= right_operand;
+        case TokenType::GREATER_EQUAL : return left_operand >= right_operand;
+        case TokenType::EQUAL : return left_operand == right_operand;
+        case TokenType::NOT_EQUAL : return left_operand != right_operand;
         default: throw runtime_error(error_message("Invallid operator", line, column));
     }
 }
