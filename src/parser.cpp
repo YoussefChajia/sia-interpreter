@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 
+#include <iostream>
+
 #include "ast.hpp"
 #include "parser.hpp"
 #include "token.hpp"
@@ -87,7 +89,28 @@ unique_ptr<StatementNode> Parser::parse_assignment(Token& identifier) {
 
 
 unique_ptr<ExpressionNode> Parser::parse_expression() {
-    return parse_comparison();
+    // starting from lowest precedence
+    return parse_logical_or();
+}
+
+unique_ptr<ExpressionNode> Parser::parse_logical_or() {
+    auto left = parse_logical_and();
+    while (match(TokenType::LOGICAL_OR)) {
+        Token op = look_ahead_.value(); eat(op.type);
+        auto right = parse_logical_and();
+        left = make_unique<BinaryOpNode>(op.type, std::move(left), std::move(right), op.line, op.column);
+    }
+    return left;
+}
+
+unique_ptr<ExpressionNode> Parser::parse_logical_and() {
+    auto left = parse_comparison();
+    while (match(TokenType::LOGICAL_AND)) {
+        Token op = look_ahead_.value(); eat(op.type);
+        auto right = parse_comparison();
+        left = make_unique<BinaryOpNode>(op.type, std::move(left), std::move(right), op.line, op.column);
+    }
+    return left;
 }
 
 unique_ptr<ExpressionNode> Parser::parse_comparison() {
@@ -114,7 +137,7 @@ unique_ptr<ExpressionNode> Parser::parse_term() {
 
 unique_ptr<ExpressionNode> Parser::parse_factor() {
     auto left = parse_primary();
-    while (match(TokenType::MULTIPLY) || match(TokenType::DIVIDE)) {
+    while (match(TokenType::MULTIPLY) || match(TokenType::DIVIDE) || match(TokenType::MODULO)) {
         Token op = look_ahead_.value(); eat(op.type);
         auto right = parse_primary();
         left = make_unique<BinaryOpNode>(op.type, std::move(left), std::move(right), op.line, op.column);
@@ -144,8 +167,8 @@ unique_ptr<ExpressionNode> Parser::parse_primary() {
         }
         case TokenType::NUMBER : {
             Token number = eat(TokenType::NUMBER);
-            double value = stod(number.lexeme);
-            return make_unique<NumberLiteral>(value, number.line, number.column);
+            if (is_integer(number.lexeme)) return make_unique<LongNumberLiteral>(stol(number.lexeme), number.line, number.column);
+            return make_unique<DoubleNumberLiteral>(stod(number.lexeme), number.line, number.column);
         }
         case TokenType::MINUS : {
             Token op = eat(TokenType::MINUS);
@@ -248,5 +271,12 @@ Token Parser::eat(const TokenType& token_type) {
 
 bool Parser::match(const TokenType& token_type) {
     return look_ahead_->type == token_type;
+}
+
+bool Parser::is_integer(const string& lexeme) {
+    if (lexeme.find('.') != string::npos) {
+        return false;
+    }
+    return true;
 }
 

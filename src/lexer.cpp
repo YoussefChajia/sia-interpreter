@@ -28,11 +28,14 @@ Lexer::Lexer() {
         {regex(R"(^>=)"), TokenType::GREATER_THAN},
         {regex(R"(^==)"), TokenType::EQUAL},
         {regex(R"(^!=)"), TokenType::NOT_EQUAL},
+        {regex(R"(^and\b)"), TokenType::LOGICAL_AND},
+        {regex(R"(^or\b)"), TokenType::LOGICAL_OR},
 
         {regex(R"(^\+)"), TokenType::PLUS},
         {regex(R"(^\-)"), TokenType::MINUS},
         {regex(R"(^\*)"), TokenType::MULTIPLY},
         {regex(R"(^\/)"), TokenType::DIVIDE},
+        {regex(R"(^%)"), TokenType::MODULO},
 
         {regex(R"(^<)"), TokenType::LESS_THAN},
         {regex(R"(^>)"), TokenType::GREATER_THAN},

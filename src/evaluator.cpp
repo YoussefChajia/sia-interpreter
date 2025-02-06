@@ -21,7 +21,7 @@ Evaluator::Evaluator() {
     native_functions_["print"] = [this](const vector<my_variant>& arguments, unsigned int line, unsigned int column) {
         string out;
         for (const auto& argument : arguments) {
-            out += this->variant_to_string(argument) + " ";
+            out += this->variant_to_string(argument, line, column) + " ";
         }
         if (!out.empty()) out.pop_back();
         cout << out << endl;
@@ -32,8 +32,8 @@ Evaluator::Evaluator() {
             throw runtime_error(error_message("pow funciton requires exactly 2 arguments: base and exponent", line, column));
         }
 
-        double base = get_number(arguments[0], line, column);
-        double exponent = get_number(arguments[1], line, column);
+        double base = to_double(arguments[0], line, column);
+        double exponent = to_double(arguments[1], line, column);
 
         double result = pow(base, exponent);
 
@@ -161,7 +161,10 @@ my_variant Evaluator::evaluate_expression(const ExpressionNode& expression) {
     if (auto string = dynamic_cast<const StringLiteral*>(&expression)) {
         return my_variant(string->value);
 
-    } else if (auto number = dynamic_cast<const NumberLiteral*>(&expression)) {
+    } else if (auto number = dynamic_cast<const LongNumberLiteral*>(&expression)) {
+        return my_variant(number->value);
+
+    } else if (auto number = dynamic_cast<const DoubleNumberLiteral*>(&expression)) {
         return my_variant(number->value);
 
     } else if (auto var = dynamic_cast<const VariableNode*>(&expression)) {
@@ -188,56 +191,127 @@ my_variant Evaluator::evaluate_expression(const ExpressionNode& expression) {
 }
 
 my_variant Evaluator::evaluate_binary_op(TokenType op, const my_variant& left, const my_variant& right, unsigned int line, unsigned int column) {
-    double left_operand = get_number(left, line, column);
-    double right_operand = get_number(right, line, column);
     switch (op) {
-        case TokenType::PLUS : return left_operand + right_operand;
-        case TokenType::MINUS : return left_operand - right_operand;
-        case TokenType::MULTIPLY : return left_operand * right_operand;
-        case TokenType::DIVIDE : {
-            if (right_operand == 0) throw runtime_error(error_message("Division by zero", line, column));
-            return left_operand / right_operand;
+        // for long, doubles and booleans
+        case TokenType::LOGICAL_OR :
+        case TokenType::LOGICAL_AND : {
+            bool left_bool = to_boolean(left, line, column);
+            bool right_bool = to_boolean(right, line, column);
+            return (op == TokenType::LOGICAL_OR) ? (left_bool || right_bool) : (left_bool && right_bool);
         }
-        case TokenType::LESS_THAN : return left_operand < right_operand;
-        case TokenType::GREATER_THAN : return left_operand > right_operand;
-        case TokenType::LESS_EQUAL : return left_operand <= right_operand;
-        case TokenType::GREATER_EQUAL : return left_operand >= right_operand;
-        case TokenType::EQUAL : return left_operand == right_operand;
-        case TokenType::NOT_EQUAL : return left_operand != right_operand;
+
+        // for long and doubles
+        case TokenType::LESS_THAN :
+        case TokenType::GREATER_THAN :
+        case TokenType::LESS_EQUAL :
+        case TokenType::GREATER_EQUAL : {
+            double left_double = to_double(left, line, column);
+            double right_double = to_double(right, line, column);
+            switch (op) {
+                case TokenType::LESS_THAN : return left_double < right_double;
+                case TokenType::GREATER_THAN : return left_double > right_double;
+                case TokenType::LESS_EQUAL :  return left_double <= right_double;
+                case TokenType::GREATER_EQUAL :  return left_double >= right_double;
+                default: throw runtime_error(error_message("Expected a number", line, column));
+            }
+        }
+        // for long, double, string and booleans
+        case TokenType::EQUAL : return are_equal(left, right, line, column);
+        case TokenType::NOT_EQUAL : return !are_equal(left, right, line, column);
+
+        // for long, double and strings
+        case TokenType::PLUS : {
+            if (holds_alternative<string>(left) || holds_alternative<string>(right)) {
+                return variant_to_string(left, line, column) + variant_to_string(right, line, column);
+            } else if (is_number(left) && is_number(right)) {
+                if (holds_alternative<long>(left) && holds_alternative<long>(right)) {
+                    return get<long>(left) + get<long>(right);
+                } else {
+                    return to_double(left, line, column) + to_double(right, line, column);
+                }
+            }
+            throw runtime_error(error_message("Expected a string or a number", line, column));
+        }
+        // for long and doubles
+        case TokenType::MINUS :
+        case TokenType::MULTIPLY :
+        case TokenType::DIVIDE : {
+            double left_double = to_double(left, line, column);
+            double right_double = to_double(right, line, column);
+            switch (op) {
+                case TokenType::MINUS : return left_double - right_double;
+                case TokenType::MULTIPLY : return left_double * right_double;
+                case TokenType::DIVIDE : {
+                    if (right_double == 0) throw runtime_error(error_message("Division by zero", line, column));
+                    return left_double / right_double;
+                }
+                default: throw runtime_error(error_message("Expected a number", line, column));
+            }
+        }
+        // for longs
+        case TokenType::MODULO : {
+            if (holds_alternative<long>(left) && holds_alternative<long>(right)) {
+                long right_long = get<long>(right);
+                if (right_long == 0) throw runtime_error(error_message("Division by zero", line, column));
+                return get<long>(left) % right_long;
+            }
+            throw runtime_error(error_message("Modulo requires integers", line, column));
+        }
         default: throw runtime_error(error_message("Invallid operator", line, column));
     }
 }
 
 my_variant Evaluator::evaluate_unary_op(TokenType op, const my_variant& operand, unsigned int line, unsigned int column) {
-    if (op == TokenType::MINUS) return -get_number(operand, line, column);
-    throw runtime_error(error_message("Invallid unary operator", line, column));
+    if (op == TokenType::MINUS) {
+        if (holds_alternative<long>(operand)) return -get<long>(operand);
+        if (holds_alternative<double>(operand)) return -get<double>(operand);
+        throw runtime_error(error_message("Expected a number", line, column));
+    }
+    throw runtime_error(error_message("Invalid unary operator", line, column));
 }
 
-double Evaluator::get_number(const my_variant& value, unsigned int line, unsigned int column) {
+bool Evaluator::is_number(const my_variant& value) {
+    return holds_alternative<long>(value) || holds_alternative<double>(value);
+}
+
+double Evaluator::to_double(const my_variant& value, unsigned int line, unsigned int column) {
+    if (holds_alternative<long>(value)) return static_cast<double>(get<long>(value));
     if (holds_alternative<double>(value)) return get<double>(value);
-    throw runtime_error(error_message("Expected number", line, column));
+    throw runtime_error(error_message("Expected a number", line, column));
 }
 
-string Evaluator::variant_to_string(const my_variant& value) {
-    if (holds_alternative<monostate>(value)) {
-        return "null";
-    } else if (holds_alternative<double>(value)) {
+bool Evaluator::are_equal(const my_variant&left, const my_variant&right, unsigned int line, unsigned int column) {
+    if (holds_alternative<string>(left) && holds_alternative<string>(right)) return get<string>(left) == get<string>(right);
+    if (is_number(left) && is_number(right)) return to_double(left, line, column) == to_double(right, line, column);
+    if (holds_alternative<bool>(left) && holds_alternative<bool>(right)) return get<bool>(left) == get<bool>(right);
+    throw runtime_error(error_message("Unexpected types of operands", line, column));
+}
+
+bool Evaluator::to_boolean(const my_variant& value, unsigned int line, unsigned int column) {
+    if (holds_alternative<bool>(value)) return get<bool>(value);
+    if (holds_alternative<long>(value)) return get<long>(value) != 0;
+    if (holds_alternative<double>(value)) return get<double>(value) != 0.0;
+    throw runtime_error(error_message("Expected a boolean or a number", line, column));
+}
+
+string Evaluator::variant_to_string(const my_variant& value, unsigned int line, unsigned int column) {
+    if (holds_alternative<string>(value)) return get<string>(value);
+    if (holds_alternative<long>(value)) return to_string(get<long>(value));
+    if (holds_alternative<double>(value)) {
         string str = to_string(get<double>(value));
         str.erase(str.find_last_not_of('0') + 1, string::npos);
         if (str.back() == '.') str.pop_back();
         return str;
-    } else if (holds_alternative<bool>(value)) {
-        return get<bool>(value) ? "true" : "false";
-    } else {
-        return get<string>(value);
     }
-    throw runtime_error("Unknown expression");
+    if (holds_alternative<bool>(value)) return get<bool>(value) ? "true" : "false";
+    if (holds_alternative<monostate>(value)) return "null";
+    throw runtime_error(error_message("Cannot convert to string", line, column));
 }
 
 string Evaluator::error_message(const string& message, unsigned int line, unsigned int column) {
     // safely constructing the string
     stringstream string_stream;
-    cout << "Error at " << line << ":" << column << " - " << message;
+    string_stream << "Error at " << line << ", " << column << " : " << message;
     return string_stream.str();
 }
 

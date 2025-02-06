@@ -14,7 +14,7 @@ using namespace std;
 
 
 // current possible types in the language
-using my_variant = variant<double, string, bool, monostate>;
+using my_variant = variant<long, double, string, bool, monostate>;
 // TODO : change the return type when you implement return
 using native_function = function<void(const vector<my_variant>&, unsigned int line, unsigned int column)>;
 
@@ -58,8 +58,11 @@ private:
     my_variant evaluate_binary_op(TokenType op, const my_variant& left, const my_variant& right, unsigned int line, unsigned int column);
     my_variant evaluate_unary_op(TokenType op, const my_variant& operand, unsigned int line, unsigned int column);
 
-    double get_number(const my_variant& value, unsigned int line, unsigned int column);
-    string variant_to_string(const my_variant& value);
+    bool is_number(const my_variant& value);
+    double to_double(const my_variant& value, unsigned int line, unsigned int column);
+    bool to_boolean(const my_variant& value, unsigned int line, unsigned int column);
+    bool are_equal(const my_variant&left, const my_variant&right, unsigned int line, unsigned int column);
+    string variant_to_string(const my_variant& value, unsigned int line, unsigned int column);
 
     string error_message(const string& message, unsigned int line, unsigned int column);
 };

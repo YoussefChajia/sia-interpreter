@@ -106,16 +106,28 @@ public:
     virtual ~StringLiteral() = default;
 };
 
-class NumberLiteral : public LiteralNode {
+class LongNumberLiteral : public LiteralNode {
 public:
-    double value;
+    long value;
 
-    explicit NumberLiteral(double value, unsigned int line, unsigned int column)
+    explicit LongNumberLiteral(long value, unsigned int line, unsigned int column)
         : value(value) {
             this->line = line;
             this->column = column;
         }
-    virtual ~NumberLiteral() = default;
+    virtual ~LongNumberLiteral() = default;
+};
+
+class DoubleNumberLiteral : public LiteralNode {
+public:
+    double value;
+
+    explicit DoubleNumberLiteral(double value, unsigned int line, unsigned int column)
+        : value(value) {
+            this->line = line;
+            this->column = column;
+        }
+    virtual ~DoubleNumberLiteral() = default;
 };
 
 class BoolLiteral : public LiteralNode {
