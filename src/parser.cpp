@@ -1,8 +1,7 @@
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
-
-#include <iostream>
 
 #include "ast.hpp"
 #include "parser.hpp"
@@ -36,10 +35,11 @@ unique_ptr<StatementNode> Parser::parse_statement() {
     switch (look_ahead_->type) {
         case TokenType::FUNCTION : return parse_function_def();
         case TokenType::LOOP : return parse_loop();
+        case TokenType::IF : return parse_if_else();
         case TokenType::RETURN : return parse_return();
         case TokenType::IDENTIFIER : return parse_identifier();
         case TokenType::LEFT_BRACE : return parse_block();
-        default: throw runtime_error("Unexpected token: " + token_type_to_string(look_ahead_->type) + " at " + to_string(look_ahead_->line) + to_string(look_ahead_->column));
+        default: throw runtime_error("Unexpected token: " + token_type_to_string(look_ahead_->type) + " at (" + to_string(look_ahead_->line) + ", " + to_string(look_ahead_->column) + ")");
     }
 }
 
@@ -55,16 +55,16 @@ unique_ptr<ReturnNode> Parser::parse_return() {
 }
 
 unique_ptr<LoopNode> Parser::parse_loop() {
-    unique_ptr<ExpressionNode> argument;
+    unique_ptr<ExpressionNode> condition;
     Token loop = eat(TokenType::LOOP);
     eat(TokenType::LEFT_PAREN);
     // TODO : handle loop without an argument
     if (!match(TokenType::RIGHT_PAREN)) {
-        argument = parse_expression();
+        condition = parse_expression();
     }
     eat(TokenType::RIGHT_PAREN);
     auto body = parse_block();
-    return make_unique<LoopNode>(std::move(argument), std::move(body), loop.line, loop.column);
+    return make_unique<LoopNode>(std::move(condition), std::move(body), loop.line, loop.column);
 }
 
 unique_ptr<StatementNode> Parser::parse_identifier() {
@@ -76,7 +76,7 @@ unique_ptr<StatementNode> Parser::parse_identifier() {
             return make_unique<ExpressionStatementNode>(std::move(function_call), identifier.line, identifier.column);
         }
         case TokenType::ASSIGN : return parse_assignment(identifier);
-        default: throw runtime_error("Unexpected token: " + token_type_to_string(look_ahead_->type) + " at " + to_string(look_ahead_->line) + to_string(look_ahead_->column));
+        default: throw runtime_error("Unexpected token: " + token_type_to_string(look_ahead_->type) + " at (" + to_string(look_ahead_->line) + ", " + to_string(look_ahead_->column) + ")");
     }
 }
 
@@ -229,6 +229,29 @@ unique_ptr<BlockNode> Parser::parse_block() {
     return make_unique<BlockNode>(std::move(statements), brace.line, brace.column);
 }
 
+unique_ptr<IfElseNode> Parser::parse_if_else() {
+    unique_ptr<ExpressionNode> condition;
+    Token if_token = eat(TokenType::IF);
+    eat(TokenType::LEFT_PAREN);
+    // TODO : handle if statement without an argument
+    if (!match(TokenType::RIGHT_PAREN)) {
+        condition = parse_expression();
+    }
+    eat(TokenType::RIGHT_PAREN);
+    auto if_branch = parse_block();
+    unique_ptr<BlockNode> else_branch = nullptr;
+    if (match(TokenType::ELSE)) {
+        eat(TokenType::ELSE);
+        if (match(TokenType::IF)) {
+            auto nested_if = parse_if_else();
+            else_branch = make_unique<BlockNode>(vector<unique_ptr<StatementNode>>(), nested_if->line, nested_if->column);
+            else_branch->statements.push_back(std::move(nested_if));
+        } else {
+            else_branch = parse_block();
+        }
+    }
+    return make_unique<IfElseNode>(std::move(condition), std::move(if_branch), std::move(else_branch), if_token.line, if_token.column);
+}
 
 string Parser::token_type_to_string(const TokenType& token_type) {
     map<TokenType, string> type_to_string = {
@@ -261,7 +284,7 @@ Token Parser::eat(const TokenType& token_type) {
     }
 
     if (look_ahead_->type != token_type) {
-        throw runtime_error("Unexpected token: " + token_type_to_string(look_ahead_->type) + " at " + to_string(look_ahead_->line) + ", " + to_string(look_ahead_->column) + " - expected: " + token_type_to_string(token_type));
+        throw runtime_error("Unexpected token: " + token_type_to_string(look_ahead_->type) + " at (" + to_string(look_ahead_->line) + ", " + to_string(look_ahead_->column) + ") - expected: " + token_type_to_string(token_type));
     }
 
     Token token = look_ahead_.value();

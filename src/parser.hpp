@@ -27,6 +27,9 @@ private:
     unique_ptr<LoopNode> parse_loop();
     unique_ptr<FunctionCallNode> parse_function_call(Token& identifier);
     unique_ptr<ReturnNode> parse_return();
+    unique_ptr<FunctionDefNode> parse_function_def();
+    unique_ptr<BlockNode> parse_block();
+    unique_ptr<IfElseNode> parse_if_else();
 
     unique_ptr<ExpressionNode> parse_expression();
     unique_ptr<ExpressionNode> parse_logical_or();
@@ -35,9 +38,6 @@ private:
     unique_ptr<ExpressionNode> parse_term();
     unique_ptr<ExpressionNode> parse_factor();
     unique_ptr<ExpressionNode> parse_primary();
-
-    unique_ptr<FunctionDefNode> parse_function_def();
-    unique_ptr<BlockNode> parse_block();
 
     Token eat(const TokenType& token_type);
     bool match(const TokenType& token_type);

@@ -25,6 +25,8 @@ Evaluator::Evaluator() {
         }
         if (!out.empty()) out.pop_back();
         cout << out << endl;
+
+        return monostate();
     };
 
     native_functions_["pow"] = [this](const vector<my_variant>& arguments, unsigned int line, unsigned int column) {
@@ -35,9 +37,7 @@ Evaluator::Evaluator() {
         double base = to_double(arguments[0], line, column);
         double exponent = to_double(arguments[1], line, column);
 
-        double result = pow(base, exponent);
-
-        throw return_exception(result);
+        return pow(base, exponent);
     };
 }
 
@@ -57,6 +57,10 @@ void Evaluator::evaluate_block(const BlockNode& block, bool new_scope) {
         for (const auto& statement : block.statements) {
             evaluate_statement(*statement);
         }
+    } catch (const return_exception& my_return) {
+        if (new_scope) pop_scope();
+        // throwing the exception that was caught
+        throw;
     } catch (const runtime_error& e) {
         pop_scope();
         throw runtime_error(error_message("Error inside block", block.line, block.column));
@@ -75,6 +79,9 @@ void Evaluator::evaluate_statement(const StatementNode& statement) {
 
     } else if (auto loop = dynamic_cast<const LoopNode*>(&statement)) {
         evaluate_loop(*loop);
+
+    } else if (auto if_else = dynamic_cast<const IfElseNode*>(&statement)) {
+        evaluate_if_else(*if_else);
 
     } else if (auto function_def = dynamic_cast<const FunctionDefNode*>(&statement)) {
         functions_[function_def->name] = { function_def->parameters, function_def->body.get() };
@@ -103,13 +110,7 @@ my_variant Evaluator::evaluate_function_call(const FunctionCallNode& call) {
             arguments.push_back(evaluate_expression(*argument));
         }
 
-        try {
-            native_it->second(arguments, call.line, call.column);
-            return monostate();
-        } catch (const return_exception& my_return) {
-            pop_scope();
-            return my_return.value;
-        }
+        return native_it->second(arguments, call.line, call.column);
     }
 
     auto it = functions_.find(call.name);
@@ -122,19 +123,19 @@ my_variant Evaluator::evaluate_function_call(const FunctionCallNode& call) {
         throw runtime_error(error_message("Argument count mismatch", call.line, call.column));
     }
 
-    vector<my_variant> args;
-    for (const auto& arg : call.arguments) {
-        args.push_back(evaluate_expression(*arg));
-    }
-
     push_scope();
 
-    for (size_t i = 0; i < args.size(); ++i) {
-        set_variable(function.parameters[i], args[i]);
-    }
-
     try {
-        evaluate_block(*function.body, true);
+        vector<my_variant> evaluated_args;
+        for (const auto& arg : call.arguments) {
+            evaluated_args.push_back(evaluate_expression(*arg));
+        }
+
+        for (size_t i = 0; i < evaluated_args.size(); ++i) {
+            set_variable(function.parameters[i], evaluated_args[i]);
+        }
+
+        evaluate_block(*function.body, false);
     } catch (const return_exception& my_return) {
         pop_scope();
         return my_return.value;
@@ -145,15 +146,25 @@ my_variant Evaluator::evaluate_function_call(const FunctionCallNode& call) {
 }
 
 void Evaluator::evaluate_loop(const LoopNode& loop) {
-    my_variant expression = evaluate_expression(*loop.argument);
-    if (double *number = get_if<double>(&expression)) {
-        for (auto i = 0; i < (int)*number; ++i) {
+    my_variant expression = evaluate_expression(*loop.condition);
+    if (long number = to_long(expression, loop.line, loop.column)) {
+        for (auto i = 0; i < number; ++i) {
             evaluate_block(*loop.body, false);
         }
     } else if (bool *condition = get_if<bool>(&expression)) {
         while (*condition) {
             evaluate_block(*loop.body, false);
         }
+    }
+}
+
+void Evaluator::evaluate_if_else(const IfElseNode& if_else) {
+    my_variant expression = evaluate_expression(*if_else.condition);
+    bool condition = to_boolean(expression, if_else.line, if_else.column);
+    if (condition) {
+        evaluate_block(*if_else.if_branch, false);
+    } else if (if_else.else_branch) {
+        evaluate_block(*if_else.else_branch, false);
     }
 }
 
@@ -277,6 +288,12 @@ bool Evaluator::is_number(const my_variant& value) {
 double Evaluator::to_double(const my_variant& value, unsigned int line, unsigned int column) {
     if (holds_alternative<long>(value)) return static_cast<double>(get<long>(value));
     if (holds_alternative<double>(value)) return get<double>(value);
+    throw runtime_error(error_message("Expected a number", line, column));
+}
+
+long Evaluator::to_long(const my_variant& value, unsigned int line, unsigned int column) {
+    if (holds_alternative<long>(value)) return get<long>(value);
+    if (holds_alternative<double>(value)) throw runtime_error(error_message("Expected an integer", line, column));
     throw runtime_error(error_message("Expected a number", line, column));
 }
 

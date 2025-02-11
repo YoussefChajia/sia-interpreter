@@ -24,8 +24,8 @@ Lexer::Lexer() {
         {regex(R"(^\))"), TokenType::RIGHT_PAREN},
         {regex(R"(^,)"), TokenType::COMMA},
 
-        {regex(R"(^<=)"), TokenType::LESS_THAN},
-        {regex(R"(^>=)"), TokenType::GREATER_THAN},
+        {regex(R"(^<=)"), TokenType::LESS_EQUAL},
+        {regex(R"(^>=)"), TokenType::GREATER_EQUAL},
         {regex(R"(^==)"), TokenType::EQUAL},
         {regex(R"(^!=)"), TokenType::NOT_EQUAL},
         {regex(R"(^and\b)"), TokenType::LOGICAL_AND},
@@ -45,6 +45,8 @@ Lexer::Lexer() {
         {regex(R"(^function\b)"), TokenType::FUNCTION}, // '\b' ensures that the keyword is not matched if it's a part of a larger word
         {regex(R"(^return\b)"), TokenType::RETURN},
         {regex(R"(^loop\b)"), TokenType::LOOP},
+        {regex(R"(^if\b)"), TokenType::IF},
+        {regex(R"(^else\b)"), TokenType::ELSE},
 
         // literals
         {regex(R"(^\d+\.?\d*)"), TokenType::NUMBER},

@@ -15,8 +15,7 @@ using namespace std;
 
 // current possible types in the language
 using my_variant = variant<long, double, string, bool, monostate>;
-// TODO : change the return type when you implement return
-using native_function = function<void(const vector<my_variant>&, unsigned int line, unsigned int column)>;
+using native_function = function<my_variant(const vector<my_variant>&, unsigned int line, unsigned int column)>;
 
 class Evaluator {
 public:
@@ -42,7 +41,7 @@ private:
     unordered_map<string, native_function> native_functions_;
 
     void push_scope() { scopes_.push_back(unordered_map<string, my_variant>()); }
-    void pop_scope() { if (scopes_.size() > 1) scopes_.pop_back(); }
+    void pop_scope() { if (!scopes_.empty()) scopes_.pop_back(); }
 
     my_variant get_variable(const string& name);
     void set_variable(const string& name, const my_variant& value);
@@ -53,6 +52,7 @@ private:
     void evaluate_expression_statment(const ExpressionStatementNode& expression_statement);
 
     void evaluate_loop(const LoopNode& loop);
+    void evaluate_if_else(const IfElseNode& if_else);
 
     my_variant evaluate_expression(const ExpressionNode& expression);
     my_variant evaluate_binary_op(TokenType op, const my_variant& left, const my_variant& right, unsigned int line, unsigned int column);
@@ -60,6 +60,7 @@ private:
 
     bool is_number(const my_variant& value);
     double to_double(const my_variant& value, unsigned int line, unsigned int column);
+    long to_long(const my_variant& value, unsigned int line, unsigned int column);
     bool to_boolean(const my_variant& value, unsigned int line, unsigned int column);
     bool are_equal(const my_variant&left, const my_variant&right, unsigned int line, unsigned int column);
     string variant_to_string(const my_variant& value, unsigned int line, unsigned int column);

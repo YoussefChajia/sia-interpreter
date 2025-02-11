@@ -199,15 +199,30 @@ public:
 
 class LoopNode : public StatementNode {
 public:
-    unique_ptr<ExpressionNode> argument;
+    unique_ptr<ExpressionNode> condition;
     unique_ptr<BlockNode> body;
 
-    explicit LoopNode(unique_ptr<ExpressionNode> argument, unique_ptr<BlockNode> body, unsigned int ln, unsigned int col)
-        : argument(std::move(argument)), body(std::move(body)) {
+    explicit LoopNode(unique_ptr<ExpressionNode> condition, unique_ptr<BlockNode> body, unsigned int ln, unsigned int col)
+        : condition(std::move(condition)), body(std::move(body)) {
             line = ln;
             column = col;
         }
 
     virtual ~LoopNode() = default;
+};
+
+class IfElseNode : public StatementNode {
+public:
+    unique_ptr<ExpressionNode> condition;
+    unique_ptr<BlockNode> if_branch;
+    unique_ptr<BlockNode> else_branch;
+
+    explicit IfElseNode(unique_ptr<ExpressionNode> condition, unique_ptr<BlockNode> if_branch, unique_ptr<BlockNode> else_branch, unsigned int ln, unsigned int col)
+        : condition(std::move(condition)), if_branch(std::move(if_branch)), else_branch(std::move(else_branch)) {
+        line = ln;
+        column = col;
+    }
+
+    virtual ~IfElseNode() = default;
 };
 
