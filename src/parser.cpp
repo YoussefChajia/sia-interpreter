@@ -39,8 +39,15 @@ unique_ptr<StatementNode> Parser::parse_statement() {
         case TokenType::RETURN : return parse_return();
         case TokenType::IDENTIFIER : return parse_identifier();
         case TokenType::LEFT_BRACE : return parse_block();
+        case TokenType::PARALLEL : return parse_parallel_block();
         default: throw runtime_error("Unexpected token: " + token_type_to_string(look_ahead_->type) + " at (" + to_string(look_ahead_->line) + ", " + to_string(look_ahead_->column) + ")");
     }
+}
+
+unique_ptr<ParallelBlockNode> Parser::parse_parallel_block() {
+    Token token = eat(TokenType::PARALLEL);
+    auto block = parse_block();
+    return make_unique<ParallelBlockNode>(std::move(block), token.line, token.column);
 }
 
 unique_ptr<ReturnNode> Parser::parse_return() {

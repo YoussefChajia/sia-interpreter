@@ -226,3 +226,15 @@ public:
     virtual ~IfElseNode() = default;
 };
 
+class ParallelBlockNode : public StatementNode {
+public:
+    unique_ptr<BlockNode> block;
+
+    explicit ParallelBlockNode(unique_ptr<BlockNode> block, unsigned int ln, unsigned int col)
+        : block(std::move(block)) {
+            line = ln;
+            column = col;
+        }
+
+    virtual ~ParallelBlockNode() = default;
+};

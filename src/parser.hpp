@@ -30,6 +30,7 @@ private:
     unique_ptr<FunctionDefNode> parse_function_def();
     unique_ptr<BlockNode> parse_block();
     unique_ptr<IfElseNode> parse_if_else();
+    unique_ptr<ParallelBlockNode> parse_parallel_block();
 
     unique_ptr<ExpressionNode> parse_expression();
     unique_ptr<ExpressionNode> parse_logical_or();

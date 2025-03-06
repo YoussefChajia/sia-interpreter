@@ -47,6 +47,7 @@ Lexer::Lexer() {
         {regex(R"(^loop\b)"), TokenType::LOOP},
         {regex(R"(^if\b)"), TokenType::IF},
         {regex(R"(^else\b)"), TokenType::ELSE},
+        {regex(R"(^parallel\b)"), TokenType::PARALLEL},
 
         // literals
         {regex(R"(^\d+\.?\d*)"), TokenType::NUMBER},
