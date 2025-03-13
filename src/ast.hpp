@@ -228,10 +228,10 @@ public:
 
 class ParallelBlockNode : public StatementNode {
 public:
-    unique_ptr<BlockNode> block;
+    vector<unique_ptr<BlockNode>> blocks;
 
-    explicit ParallelBlockNode(unique_ptr<BlockNode> block, unsigned int ln, unsigned int col)
-        : block(std::move(block)) {
+    explicit ParallelBlockNode(vector<unique_ptr<BlockNode>> blocks, unsigned int ln, unsigned int col)
+        : blocks(std::move(blocks)) {
             line = ln;
             column = col;
         }

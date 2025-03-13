@@ -46,8 +46,11 @@ unique_ptr<StatementNode> Parser::parse_statement() {
 
 unique_ptr<ParallelBlockNode> Parser::parse_parallel_block() {
     Token token = eat(TokenType::PARALLEL);
-    auto block = parse_block();
-    return make_unique<ParallelBlockNode>(std::move(block), token.line, token.column);
+    vector<unique_ptr<BlockNode>> blocks;
+    while (match(TokenType::LEFT_BRACE)) {
+        blocks.push_back(parse_block());
+    }
+    return make_unique<ParallelBlockNode>(std::move(blocks), token.line, token.column);
 }
 
 unique_ptr<ReturnNode> Parser::parse_return() {

@@ -11,8 +11,9 @@
 #include "token.hpp"
 #include "evaluator.hpp"
 
-
 using namespace std;
+
+thread_local vector<unordered_map<string, my_variant>> Evaluator::local_scopes_{};
 
 Evaluator::Evaluator() {
     push_scope();
@@ -43,6 +44,11 @@ Evaluator::Evaluator() {
 
 Evaluator::~Evaluator() {
     pop_scope();
+    for (auto& thread : active_threads_) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
 }
 
 void Evaluator::evaluate(const ProgramNode& program) {
@@ -68,10 +74,63 @@ void Evaluator::evaluate_block(const BlockNode& block, bool new_scope) {
     if (new_scope) pop_scope();
 }
 
+void Evaluator::evaluate_parallel_block(const ParallelBlockNode& parallel_block) {
+    // Wait for any existing threads to complete
+    for (auto& thread : active_threads_) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    active_threads_.clear();
+    
+    cout << "Starting " << parallel_block.blocks.size() << " parallel tasks" << endl;
+    
+    // Create a shared context object for all threads
+    struct ThreadContext {
+        vector<pair<string, pair<unsigned int, unsigned int>>> exceptions;
+        mutex exceptions_mutex;
+        mutex cout_mutex;
+    };
+    const BlockNode& outer_block = *parallel_block.blocks[0]; // If parser nests blocks
+    cout << "Starting " << outer_block.statements.size() << " parallel tasks" << endl;
+    
+    // Create shared context...
+    auto context = make_shared<ThreadContext>();
+    
+    for (size_t i = 0; i < outer_block.statements.size(); i++) {
+        const auto& statement = outer_block.statements[i];
+        if (auto* inner_block = dynamic_cast<const BlockNode*>(statement.get())) {
+            active_threads_.emplace_back([this, inner_block, i, context]() {
+                // Thread execution code here...
+                this->evaluate_block(*inner_block, true);
+            });
+        }
+    }
+    
+    // Wait for all threads to complete
+    for (auto& thread : active_threads_) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    active_threads_.clear();
+    
+    cout << "All parallel tasks completed" << endl;
+    
+    // Report any exceptions
+    if (!context->exceptions.empty()) {
+        auto [msg, pos] = context->exceptions[0];
+        throw runtime_error(error_message("Error in parallel block: " + msg, pos.first, pos.second));
+    }
+}
+
 void Evaluator::evaluate_statement(const StatementNode& statement) {
     // returns either a valid or null pointer
     if (auto block = dynamic_cast<const BlockNode*>(&statement)) {
         evaluate_block(*block, true);
+
+    } else if (auto parallel_block = dynamic_cast<const ParallelBlockNode*>(&statement)) {
+        evaluate_parallel_block(*parallel_block);
 
     } else if (auto assignment = dynamic_cast<const AssignmentNode*>(&statement)) {
         my_variant value = evaluate_expression(*assignment->expression);
@@ -109,16 +168,19 @@ my_variant Evaluator::evaluate_function_call(const FunctionCallNode& call) {
         for (const auto& argument  : call.arguments) {
             arguments.push_back(evaluate_expression(*argument));
         }
-
         return native_it->second(arguments, call.line, call.column);
     }
 
-    auto it = functions_.find(call.name);
-    if (it == functions_.end()) {
-        throw runtime_error(error_message("Undefined function : " + call.name, call.line, call.column));
+    function_def function;
+    {
+        lock_guard<mutex> lock(functions_mutex_);
+        auto it = functions_.find(call.name);
+        if (it == functions_.end()) {
+            throw runtime_error(error_message("Undefined function: " + call.name, call.line, call.column));
+        }
+        function = it->second;
     }
 
-    const auto& function = it->second;
     if (call.arguments.size() != function.parameters.size()) {
         throw runtime_error(error_message("Argument count mismatch", call.line, call.column));
     }
@@ -333,15 +395,31 @@ string Evaluator::error_message(const string& message, unsigned int line, unsign
 }
 
 my_variant Evaluator::get_variable(const string& name) {
-    for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
-        auto var = scope->find(name);
-        if (var != scope->end()) {
+    // First check local scopes (from most recent to oldest)
+    for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend(); ++it) {
+        auto var = it->find(name);
+        if (var != it->end()) {
             return var->second;
         }
     }
-    throw runtime_error("Undefined variable " + name);
+
+    // Then check global scope with proper locking
+    lock_guard<mutex> lock(global_scope_mutex_);
+    auto var = global_scope_.find(name);
+    if (var != global_scope_.end()) {
+        return var->second;
+    }
+
+    throw runtime_error("Undefined variable: " + name);
 }
 
 void Evaluator::set_variable(const string& name, const my_variant& value) {
-    scopes_.back()[name] = value;
+    if (!local_scopes_.empty()) {
+        // Set in most recent local scope
+        local_scopes_.back()[name] = value;
+    } else {
+        // Fall back to global scope with proper locking
+        lock_guard<mutex> lock(global_scope_mutex_);
+        global_scope_[name] = value;
+    }
 }
