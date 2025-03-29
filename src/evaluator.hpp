@@ -4,14 +4,15 @@
 #include <functional>
 #include <mutex>
 #include <optional>
-#include <thread>
 #include <unordered_map>
 #include <variant>
 #include <string>
 #include <vector>
+#include <atomic>
 
 #include "ast.hpp"
 #include "token.hpp"
+#include "thread_pool.hpp"
 
 using namespace std;
 
@@ -42,10 +43,12 @@ private:
     static thread_local vector<unordered_map<string, my_variant>> local_scopes_;
     unordered_map<string, my_variant> global_scope_;
     mutex global_scope_mutex_;
+    mutex shared_vars_mutex_;
+    atomic<bool> in_parallel_block_{false};
 
     unordered_map<string, function_def> functions_;
     mutex functions_mutex_;
-    vector<thread> active_threads_;
+    unique_ptr<ThreadPool> thread_pool_;
     optional<pair<string, pair<unsigned int, unsigned int>>> thread_exception_;
     mutex exception_mutex_;
 
@@ -71,7 +74,7 @@ private:
     void evaluate_loop(const LoopNode& loop);
     void evaluate_if_else(const IfElseNode& if_else);
 
-    void evaluate_parallel_block(const ParallelBlockNode& parallel_block);
+    my_variant evaluate_parallel_block(const ParallelBlockNode& parallel_block);
 
     my_variant evaluate_expression(const ExpressionNode& expression);
     my_variant evaluate_binary_op(TokenType op, const my_variant& left, const my_variant& right, unsigned int line, unsigned int column);
