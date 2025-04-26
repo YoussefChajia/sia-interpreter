@@ -121,7 +121,7 @@ TEST_F(ConcurrencyTest, ParallelCounterIncrement) {
         }
     )";
 
-    EXPECT_GT(get_variant_value<long>(get_variable_value(code, "counter")), 8);
+    EXPECT_EQ(get_variant_value<long>(get_variable_value(code, "counter")), 10);
     ASSERT_NO_THROW(evaluate_code(code));
 }
 
@@ -163,6 +163,6 @@ TEST_F(ConcurrencyTest, ThreadLocalScopeIsolation) {
     )";
 
     EXPECT_EQ(get_variant_value<long>(get_variable_value(code, "global_val")), 3);
-    // EXPECT_THROW(get_variable_value(code, "local_var"), std::runtime_error);
+    EXPECT_THROW(get_variable_value(code, "local_var"), std::runtime_error);
     ASSERT_NO_THROW(evaluate_code(code));
 }

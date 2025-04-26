@@ -510,22 +510,27 @@ void Evaluator::set_variable(const string& name, const my_variant& value) {
         for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend(); ++it) {
             auto var = it->find(name);
             if (var != it->end()) {
+                // Found in local scope (this thread's scope)
                 var->second = value;
                 return;
             }
         }
         
-        // Not in local scope, so it might be a shared variable in global scope
-        lock_guard<mutex> lock(global_scope_mutex_);
-        auto var = global_scope_.find(name);
-        if (var != global_scope_.end()) {
-            // Update the shared variable
-            var->second = value;
-            return;
+        {
+            lock_guard<mutex> lock(global_scope_mutex_);
+            auto var = global_scope_.find(name);
+            if (var != global_scope_.end()) {
+                var->second = value;
+                return;
+            }
         }
         
-        // Not found anywhere, create it in global scope to make it shared
-        global_scope_[name] = value;
+        // Variable doesn't exist anywhere (not local, not global).
+        if (!local_scopes_.empty()) {
+            local_scopes_.back()[name] = value;
+        } else {
+            throw runtime_error(error_message("Internal error: Parallel task attempted to set variable '" + name + "' without a local scope.", 0, 0)); // Use 0,0 for line/col as it's internal
+        }
     } else {
         for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend(); ++it) {
             auto var = it->find(name);
