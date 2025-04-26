@@ -17,7 +17,7 @@
 using namespace std;
 
 
-// current possible types in the language
+// Current possible types in the language
 using my_variant = variant<long, double, string, bool, monostate>;
 using native_function = function<my_variant(const vector<my_variant>&, unsigned int line, unsigned int column)>;
 
@@ -27,6 +27,7 @@ class Evaluator {
 public:
     Evaluator();
     void evaluate(const ProgramNode& program);
+    my_variant evaluate_expression(const ExpressionNode& expression);
     virtual ~Evaluator();
 
 private:
@@ -54,14 +55,8 @@ private:
 
     unordered_map<string, native_function> native_functions_;
 
-    // void push_scope() { local_scopes_.push_back(unordered_map<string, my_variant>()); }
-    // void pop_scope() { if (!local_scopes_.empty()) local_scopes_.pop_back(); }
-    void push_scope() { local_scopes_.push_back(unordered_map<string, my_variant>());}
-    void pop_scope() {
-        if (!local_scopes_.empty()) {
-            local_scopes_.pop_back();
-        }
-    }
+    void push_scope() { local_scopes_.push_back(unordered_map<string, my_variant>()); }
+    void pop_scope() { if (!local_scopes_.empty()) local_scopes_.pop_back(); }
 
     my_variant get_variable(const string& name);
     void set_variable(const string& name, const my_variant& value);
@@ -74,9 +69,8 @@ private:
     void evaluate_loop(const LoopNode& loop);
     void evaluate_if_else(const IfElseNode& if_else);
 
-    my_variant evaluate_parallel_block(const ParallelBlockNode& parallel_block);
+    void evaluate_parallel_block(const ParallelBlockNode& parallel_block);
 
-    my_variant evaluate_expression(const ExpressionNode& expression);
     my_variant evaluate_binary_op(TokenType op, const my_variant& left, const my_variant& right, unsigned int line, unsigned int column);
     my_variant evaluate_unary_op(TokenType op, const my_variant& operand, unsigned int line, unsigned int column);
 

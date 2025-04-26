@@ -20,7 +20,7 @@ thread_local vector<unordered_map<string, my_variant>> Evaluator::local_scopes_{
 
 Evaluator::Evaluator() {
     push_scope();
-    // Initialize thread pool with number of hardware threads
+    // Initializing thread pool with number of hardware threads
     thread_pool_ = make_unique<ThreadPool>(thread::hardware_concurrency());
 
     // [] -> captures variables to use inside the lambda function
@@ -66,7 +66,7 @@ void Evaluator::evaluate_block(const BlockNode& block, bool new_scope) {
         }
     } catch (const return_exception& my_return) {
         if (new_scope) pop_scope();
-        // throwing the exception that was caught
+        // Throwing the exception that was caught
         throw;
     } catch (const runtime_error& e) {
         pop_scope();
@@ -75,211 +75,104 @@ void Evaluator::evaluate_block(const BlockNode& block, bool new_scope) {
     if (new_scope) pop_scope();
 }
 
-my_variant Evaluator::evaluate_parallel_block(const ParallelBlockNode& parallel_block) {
-    cout << "Starting parallel block with " << parallel_block.blocks.size() << " tasks" << endl;
-    
-    // Check if this is a special example
-    bool is_example2 = false;
-    bool is_example3 = false;
-    
-    // Examine the structure to determine which example we're running
-    if (parallel_block.blocks.size() == 1) {
-        const BlockNode& block = *parallel_block.blocks[0];
-        
-        // Example 2: Shared Counter (two blocks of code that manipulate a shared counter)
-        if (block.statements.size() == 2 && 
-            dynamic_cast<const BlockNode*>(block.statements[0].get()) && 
-            dynamic_cast<const BlockNode*>(block.statements[1].get())) {
-            
-            // Further examine statements to see if this is Example 3
-            for (const auto& statement : block.statements) {
-                if (auto* inner_block = dynamic_cast<const BlockNode*>(statement.get())) {
-                    for (const auto& inner_stmt : inner_block->statements) {
-                        if (dynamic_cast<const ParallelBlockNode*>(inner_stmt.get())) {
-                            is_example3 = true;
-                            break;
-                        }
-                    }
-                    if (is_example3) break;
-                }
-            }
-            
-            // If no nested parallel blocks found, it's Example 2
-            if (!is_example3) {
-                is_example2 = true;
-            }
+void Evaluator::evaluate_parallel_block(const ParallelBlockNode& parallel_block) {
+    if (parallel_block.blocks.empty()) {
+        return;
+    }
+
+    // Storing original local scope variable state to know what variables need to be copied back
+    unordered_map<string, bool> original_vars;
+    if (!local_scopes_.empty()) {
+        for (const auto& [name, _] : local_scopes_.back()) {
+            original_vars[name] = true;
         }
     }
-    
-    // Special handling for Example 2
-    if (is_example2) {
-        // Set up counting threads
-        vector<thread> threads;
-        mutex shared_mutex;
-        long shared_counter = 0;
-        
-        // First thread
-        threads.emplace_back([this, &shared_mutex, &shared_counter]() {
-            try {
-                cout << "Thread 1 starting" << endl;
-                
-                for (int i = 0; i < 5; i++) {
-                    {
-                        lock_guard<mutex> lock(shared_mutex);
-                        shared_counter += 1;
-                        cout << "Thread 1: counter = " << shared_counter << endl;
-                    }
-                    // Small delay to allow thread interleaving
-                    this_thread::sleep_for(chrono::milliseconds(10));
-                }
-                
-                cout << "Thread 1 completed" << endl;
-            } catch (const exception& e) {
-                cout << "Thread 1 error: " << e.what() << endl;
-            }
-        });
-        
-        // Second thread
-        threads.emplace_back([this, &shared_mutex, &shared_counter]() {
-            try {
-                cout << "Thread 2 starting" << endl;
-                
-                for (int i = 0; i < 5; i++) {
-                    {
-                        lock_guard<mutex> lock(shared_mutex);
-                        shared_counter += 1;
-                        cout << "Thread 2: counter = " << shared_counter << endl;
-                    }
-                    // Small delay to allow thread interleaving
-                    this_thread::sleep_for(chrono::milliseconds(10));
-                }
-                
-                cout << "Thread 2 completed" << endl;
-            } catch (const exception& e) {
-                cout << "Thread 2 error: " << e.what() << endl;
-            }
-        });
-        
-        // Wait for all threads to complete
-        for (auto& t : threads) {
-            t.join();
-        }
-        
-        // Update the shared_counter in the interpreter's state
-        // Don't print the final value here, as it's printed in the script
-        set_variable("shared_counter", static_cast<long>(shared_counter));
-        
-        return monostate();
-    }
-    
-    // Regular parallel block handling for other cases (including Example 1 and Example 3)
-    if (is_example3) {
-        // Example 3: Handle nested parallelism properly
-        struct ThreadContext {
-            vector<pair<string, pair<unsigned int, unsigned int>>> exceptions;
-            mutex exceptions_mutex;
-        };
-        auto context = make_shared<ThreadContext>();
-        
-        vector<future<void>> futures;
-        mutex shared_mutex;
-        
-        for (const auto& block_ptr : parallel_block.blocks) {
-            const BlockNode* raw_block_ptr = block_ptr.get();
-            
-            futures.push_back(thread_pool_->enqueue([this, raw_block_ptr, &shared_mutex, context]() {
-                try {
-                    this->push_scope();
-                    
-                    for (const auto& statement : raw_block_ptr->statements) {
-                        if (auto* parallel = dynamic_cast<const ParallelBlockNode*>(statement.get())) {
-                            // Handle nested parallelism by recursive call
-                            this->evaluate_parallel_block(*parallel);
-                        } else {
-                            // Process statements normally
-                            this->evaluate_statement(*statement);
-                        }
-                    }
-                    
-                    this->pop_scope();
-                } catch (const exception& e) {
-                    lock_guard<mutex> lock(context->exceptions_mutex);
-                    context->exceptions.emplace_back(e.what(), make_pair(raw_block_ptr->line, raw_block_ptr->column));
-                }
-            }));
-        }
-        
-        // Wait for all tasks to complete
-        for (auto& future : futures) {
-            future.get();
-        }
-        
-        // Check for any exceptions
-        if (!context->exceptions.empty()) {
-            auto [msg, pos] = context->exceptions[0];
-            throw runtime_error(error_message("Error in parallel block: " + msg, pos.first, pos.second));
-        }
-        
-        return monostate();
-    }
-    
-    // Example 1 and generic parallel handling
+
+    // Setting up thread context to capture and propagate exceptions
     struct ThreadContext {
         vector<pair<string, pair<unsigned int, unsigned int>>> exceptions;
         mutex exceptions_mutex;
+        mutex cout_mutex;
+        bool has_exception() const { return !exceptions.empty(); }
+        void add_exception(const string& msg, unsigned int line, unsigned int column) {
+            lock_guard<mutex> lock(exceptions_mutex);
+            exceptions.emplace_back(msg, make_pair(line, column));
+        }
+        void safe_print(const string& msg) {
+            lock_guard<mutex> lock(cout_mutex);
+            cout << msg << endl;
+        }
     };
     auto context = make_shared<ThreadContext>();
     
-    vector<future<void>> futures;
-    mutex shared_mutex;
+    bool was_in_parallel = in_parallel_block_.exchange(true);
     
-    for (const auto& block_ptr : parallel_block.blocks) {
+    vector<future<void>> futures;
+    futures.reserve(parallel_block.blocks.size());
+    
+    // Copying the parent scope variables to the global scope to ensure all threads can access them
+    if (!local_scopes_.empty()) {
+        lock_guard<mutex> lock(global_scope_mutex_);
+        for (const auto& [name, value] : local_scopes_.back()) {
+            if (global_scope_.find(name) == global_scope_.end()) {
+                global_scope_[name] = value;
+            }
+        }
+    }
+    
+    for (size_t i = 0; i < parallel_block.blocks.size(); ++i) {
+        const auto& block_ptr = parallel_block.blocks[i];
         const BlockNode* raw_block_ptr = block_ptr.get();
         
-        futures.push_back(thread_pool_->enqueue([this, raw_block_ptr, &shared_mutex, context]() {
+        // Enqueing each task as a separate unit of work
+        futures.push_back(thread_pool_->enqueue([this, raw_block_ptr, context, i]() {
             try {
                 this->push_scope();
                 
                 for (const auto& statement : raw_block_ptr->statements) {
-                    // Handle different statement types appropriately
-                    if (auto* assignment = dynamic_cast<const AssignmentNode*>(statement.get())) {
-                        // Synchronize variable assignments
-                        lock_guard<mutex> lock(shared_mutex);
-                        my_variant value = this->evaluate_expression(*assignment->expression);
-                        this->set_variable(assignment->identifier, value);
-                    } else if (auto* parallel = dynamic_cast<const ParallelBlockNode*>(statement.get())) {
-                        // Handle nested parallelism by recursive call
-                        this->evaluate_parallel_block(*parallel);
-                    } else {
-                        // Process other statements normally
-                        this->evaluate_statement(*statement);
+                    this->evaluate_statement(*statement);
+                    
+                    if (context->has_exception()) {
+                        break;
                     }
                 }
                 
                 this->pop_scope();
             } catch (const exception& e) {
-                lock_guard<mutex> lock(context->exceptions_mutex);
-                context->exceptions.emplace_back(e.what(), make_pair(raw_block_ptr->line, raw_block_ptr->column));
+                string error_msg = e.what();
+                context->safe_print("Task " + to_string(i+1) + " error: " + error_msg);
+                context->add_exception(error_msg, raw_block_ptr->line, raw_block_ptr->column);
             }
         }));
     }
     
-    // Wait for all tasks to complete
+    // Waiting for all tasks to complete
     for (auto& future : futures) {
-        future.get();
+        try {
+            future.get();
+        } catch (const exception& e) {
+            context->add_exception(e.what(), parallel_block.line, parallel_block.column);
+        }
     }
     
-    // Check for any exceptions
-    if (!context->exceptions.empty()) {
+    // Copying back shared variables from global scope to local scope
+    if (!local_scopes_.empty()) {
+        lock_guard<mutex> lock(global_scope_mutex_);
+        for (const auto& [name, value] : global_scope_) {
+            local_scopes_.back()[name] = value;
+        }
+    }
+    
+    in_parallel_block_ = was_in_parallel;
+    
+    if (context->has_exception()) {
         auto [msg, pos] = context->exceptions[0];
         throw runtime_error(error_message("Error in parallel block: " + msg, pos.first, pos.second));
     }
-    
-    return monostate();
 }
 
 void Evaluator::evaluate_statement(const StatementNode& statement) {
-    // returns either a valid or null pointer
+    // Returns either a valid or null pointer
     if (auto block = dynamic_cast<const BlockNode*>(&statement)) {
         evaluate_block(*block, true);
 
@@ -338,25 +231,27 @@ my_variant Evaluator::evaluate_function_call(const FunctionCallNode& call) {
     if (call.arguments.size() != function.parameters.size()) {
         throw runtime_error(error_message("Argument count mismatch", call.line, call.column));
     }
-
+    
+    // Evaluating all arguments before creating function scope
+    vector<my_variant> evaluated_args;
+    for (const auto& arg : call.arguments) {
+        evaluated_args.push_back(evaluate_expression(*arg));
+    }
+    
     push_scope();
-
+    
     try {
-        vector<my_variant> evaluated_args;
-        for (const auto& arg : call.arguments) {
-            evaluated_args.push_back(evaluate_expression(*arg));
-        }
-
         for (size_t i = 0; i < evaluated_args.size(); ++i) {
-            set_variable(function.parameters[i], evaluated_args[i]);
+            local_scopes_.back()[function.parameters[i]] = evaluated_args[i];
         }
-
+        
+        // Executing function body with the isolated local scope
         evaluate_block(*function.body, false);
     } catch (const return_exception& my_return) {
         pop_scope();
         return my_return.value;
     }
-
+    
     pop_scope();
     return monostate();
 }
@@ -419,7 +314,7 @@ my_variant Evaluator::evaluate_expression(const ExpressionNode& expression) {
 
 my_variant Evaluator::evaluate_binary_op(TokenType op, const my_variant& left, const my_variant& right, unsigned int line, unsigned int column) {
     switch (op) {
-        // for long, doubles and booleans
+        // For long, doubles and booleans
         case TokenType::LOGICAL_OR :
         case TokenType::LOGICAL_AND : {
             bool left_bool = to_boolean(left, line, column);
@@ -427,7 +322,7 @@ my_variant Evaluator::evaluate_binary_op(TokenType op, const my_variant& left, c
             return (op == TokenType::LOGICAL_OR) ? (left_bool || right_bool) : (left_bool && right_bool);
         }
 
-        // for long and doubles
+        // For long and doubles
         case TokenType::LESS_THAN :
         case TokenType::GREATER_THAN :
         case TokenType::LESS_EQUAL :
@@ -442,11 +337,11 @@ my_variant Evaluator::evaluate_binary_op(TokenType op, const my_variant& left, c
                 default: throw runtime_error(error_message("Expected a number", line, column));
             }
         }
-        // for long, double, string and booleans
+        // For long, double, string and booleans
         case TokenType::EQUAL : return are_equal(left, right, line, column);
         case TokenType::NOT_EQUAL : return !are_equal(left, right, line, column);
 
-        // for long, double and strings
+        // For long, double and strings
         case TokenType::PLUS : {
             if (holds_alternative<string>(left) || holds_alternative<string>(right)) {
                 return variant_to_string(left, line, column) + variant_to_string(right, line, column);
@@ -459,23 +354,51 @@ my_variant Evaluator::evaluate_binary_op(TokenType op, const my_variant& left, c
             }
             throw runtime_error(error_message("Expected a string or a number", line, column));
         }
-        // for long and doubles
+        // For long and doubles
         case TokenType::MINUS :
         case TokenType::MULTIPLY :
         case TokenType::DIVIDE : {
-            double left_double = to_double(left, line, column);
-            double right_double = to_double(right, line, column);
-            switch (op) {
-                case TokenType::MINUS : return left_double - right_double;
-                case TokenType::MULTIPLY : return left_double * right_double;
-                case TokenType::DIVIDE : {
-                    if (right_double == 0) throw runtime_error(error_message("Division by zero", line, column));
-                    return left_double / right_double;
+            // Check if both operands are longs
+            if (holds_alternative<long>(left) && holds_alternative<long>(right)) {
+                long left_long = get<long>(left);
+                long right_long = get<long>(right);
+                
+                // Handle division by zero
+                if (op == TokenType::DIVIDE && right_long == 0) {
+                    throw runtime_error(error_message("Division by zero", line, column));
                 }
-                default: throw runtime_error(error_message("Expected a number", line, column));
+                
+                switch (op) {
+                    case TokenType::MINUS : return left_long - right_long;
+                    case TokenType::MULTIPLY : return left_long * right_long;
+                    case TokenType::DIVIDE : {
+                        // For integer division, check if it's exact
+                        if (left_long % right_long == 0) {
+                            return left_long / right_long;
+                        } else {
+                            return static_cast<double>(left_long) / static_cast<double>(right_long);
+                        }
+                    }
+                    default: throw runtime_error(error_message("Expected a number", line, column));
+                }
+            } else {
+                // If either is a double or mixed types, use double arithmetic
+                double left_double = to_double(left, line, column);
+                double right_double = to_double(right, line, column);
+                
+                if (op == TokenType::DIVIDE && right_double == 0) {
+                    throw runtime_error(error_message("Division by zero", line, column));
+                }
+                
+                switch (op) {
+                    case TokenType::MINUS : return left_double - right_double;
+                    case TokenType::MULTIPLY : return left_double * right_double;
+                    case TokenType::DIVIDE : return left_double / right_double;
+                    default: throw runtime_error(error_message("Expected a number", line, column));
+                }
             }
         }
-        // for longs
+        // For longs
         case TokenType::MODULO : {
             if (holds_alternative<long>(left) && holds_alternative<long>(right)) {
                 long right_long = get<long>(right);
@@ -549,53 +472,84 @@ string Evaluator::error_message(const string& message, unsigned int line, unsign
 }
 
 my_variant Evaluator::get_variable(const string& name) {
-    // First check local scopes (from most recent to oldest)
-    for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend(); ++it) {
-        auto var = it->find(name);
-        if (var != it->end()) {
+    // In parallel blocks, check local scope first, then global scope
+    if (in_parallel_block_.load()) {
+        for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend(); ++it) {
+            auto var = it->find(name);
+            if (var != it->end()) {
+                return var->second;
+            }
+        }
+        
+        lock_guard<mutex> lock(global_scope_mutex_);
+        auto var = global_scope_.find(name);
+        if (var != global_scope_.end()) {
             return var->second;
         }
-    }
+    } else {
+        for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend(); ++it) {
+            auto var = it->find(name);
+            if (var != it->end()) {
+                return var->second;
+            }
+        }
 
-    // Check global scope
-    lock_guard<mutex> lock(global_scope_mutex_);
-    auto var = global_scope_.find(name);
-    if (var != global_scope_.end()) {
-        return var->second;
+        lock_guard<mutex> lock(global_scope_mutex_);
+        auto var = global_scope_.find(name);
+        if (var != global_scope_.end()) {
+            return var->second;
+        }
     }
 
     throw runtime_error("Undefined variable: " + name);
 }
 
 void Evaluator::set_variable(const string& name, const my_variant& value) {
-    // First check if the variable exists in any local scope
-    for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend(); ++it) {
-        auto var = it->find(name);
-        if (var != it->end()) {
-            // Update existing local variable
-            var->second = value;
-            return;
+    // In parallel blocks, we need special handling
+    if (in_parallel_block_.load()) {
+        for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend(); ++it) {
+            auto var = it->find(name);
+            if (var != it->end()) {
+                var->second = value;
+                return;
+            }
         }
-    }
-    
-    // Check if it exists in global scope
-    {
+        
+        // Not in local scope, so it might be a shared variable in global scope
         lock_guard<mutex> lock(global_scope_mutex_);
         auto var = global_scope_.find(name);
         if (var != global_scope_.end()) {
-            // Update existing global variable
+            // Update the shared variable
             var->second = value;
             return;
         }
-    }
-    
-    // Variable doesn't exist anywhere, create it in current scope
-    if (!local_scopes_.empty()) {
-        // Create in most recent local scope
-        local_scopes_.back()[name] = value;
-    } else {
-        // Create in global scope
-        lock_guard<mutex> lock(global_scope_mutex_);
+        
+        // Not found anywhere, create it in global scope to make it shared
         global_scope_[name] = value;
+    } else {
+        for (auto it = local_scopes_.rbegin(); it != local_scopes_.rend(); ++it) {
+            auto var = it->find(name);
+            if (var != it->end()) {
+                var->second = value;
+                return;
+            }
+        }
+        
+        {
+            lock_guard<mutex> lock(global_scope_mutex_);
+            auto var = global_scope_.find(name);
+            if (var != global_scope_.end()) {
+                var->second = value;
+                return;
+            }
+        }
+        
+        // Variable doesn't exist anywhere, create it in current scope
+        if (!local_scopes_.empty()) {
+            local_scopes_.back()[name] = value;
+        } else {
+            lock_guard<mutex> lock(global_scope_mutex_);
+            global_scope_[name] = value;
+        }
     }
 }

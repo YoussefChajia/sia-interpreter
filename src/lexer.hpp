@@ -20,7 +20,6 @@ public:
     bool has_more_tokens() const;
     bool is_EOF() const;
     optional<Token> get_next_token();
-    optional<string> match(const regex& pattern, const string& str);
 
 private:
     string input_;

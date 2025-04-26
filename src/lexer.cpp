@@ -75,39 +75,58 @@ bool Lexer::is_EOF() const {
     return cursor_ == input_.length();
 }
 
-// TODO -> optimize looking thru spec_
-//
 optional<Token> Lexer::get_next_token() {
-    if (!this->has_more_tokens()) return nullopt;
-    const string input = input_.substr(cursor_);
+    if (!has_more_tokens()) return nullopt;
 
-    for (const auto& [regex, token_type] : spec_) {
-        const optional<string> token_value = match(regex, input);
+    const string current_input = input_.substr(cursor_);
 
-        if (token_value == nullopt) continue;
+    for (const auto& [regex, token_type_opt] : spec_) {
+        smatch matched;
+        if (regex_search(current_input, matched, regex)) {
+            if (matched.position(0) != 0) continue;
 
-        if (token_type == nullopt) return get_next_token();
+            string matched_str = matched[0].str();
+            unsigned int match_length = matched_str.length();
+            unsigned int start_column = column_;
 
-        if (token_type.value() == TokenType::NEWLINE) {
-            line_++; column_ = 1;
-            return get_next_token();
+            cursor_ += match_length;
+
+            if (!token_type_opt.has_value()) {
+                 size_t last_newline = matched_str.rfind('\n');
+                 if (last_newline != string::npos) {
+                     unsigned int newline_count = 0;
+                     for(char c : matched_str) { if (c == '\n') newline_count++; }
+                     line_ += newline_count;
+                     column_ = matched_str.length() - last_newline;
+                 } else {
+                     column_ += match_length;
+                 }
+                 return get_next_token();
+            }
+
+            TokenType token_type = token_type_opt.value();
+
+            if (token_type == TokenType::NEWLINE) {
+                line_++;
+                column_ = 1;
+                return get_next_token();
+            }
+
+            string lexeme = matched_str;
+            if (token_type == TokenType::STRING) {
+                 if (lexeme.length() >= 2 && lexeme.front() == '"' && lexeme.back() == '"') {
+                    lexeme = lexeme.substr(1, lexeme.size() - 2);
+                 } else {
+                    // Maybe throw error for unterminated string literal
+                 }
+            }
+
+            column_ += match_length; 
+
+            return Token{token_type, lexeme, line_, start_column};
         }
-
-        string lexeme = token_value.value();
-        if (token_type.value() == TokenType::STRING) {
-            lexeme = lexeme.substr(1, lexeme.size() - 2);
-        }
-
-        column_ += token_value.value().length();
-        return Token{token_type.value(), lexeme, this->line_, this->column_};
     }
 
-    throw runtime_error("Unexpected input: \"" + string(1, input[0]) + "\" at " + to_string(line_) + ", " + to_string(column_));
-}
-
-optional<string> Lexer::match(const regex& pattern, const string& str) {
-    smatch matched;
-    if (!regex_search(str, matched, pattern)) return nullopt;
-    cursor_ += matched[0].length();
-    return matched[0];
+    // If the loop finishes without matching any rule
+    throw runtime_error("Unexpected input: \"" + string(1, current_input[0]) + "\" at " + to_string(line_) + ", " + to_string(column_));
 }

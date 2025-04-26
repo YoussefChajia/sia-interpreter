@@ -87,7 +87,7 @@ TEST(ParserTest, FunctionDefinition) {
 
 TEST(ParserTest, ParallelBlock) {
     Parser parser;
-    string input = "parallel { x = 1; } { y = 2; }";
+    string input = "parallel { { x = 1; } { y = 2; } }";
     unique_ptr<ProgramNode> program = parser.parse(input);
 
     ASSERT_NE(program, nullptr);
@@ -112,16 +112,6 @@ TEST(ParserTest, ParallelBlock) {
 
 TEST(ParserTest, SyntaxError) {
     Parser parser;
-    string input = "x = 5 +;"; // Missing operand after +
+    string input = "x = 5 +;";
     ASSERT_THROW(parser.parse(input), std::runtime_error);
-    // try {
-    //     parser.parse(input);
-    //     FAIL() << "Expected std::runtime_error for syntax error";
-    // } catch (const std::runtime_error& e) {
-    //     // Check if the error message indicates an unexpected token (e.g., semicolon)
-    //     EXPECT_NE(string(e.what()).find("Unexpected token"), string::npos);
-    //     EXPECT_NE(string(e.what()).find("SEMICOLON"), string::npos);
-    // } catch (...) {
-    //     FAIL() << "Expected std::runtime_error, but got different exception";
-    // }
 } 
