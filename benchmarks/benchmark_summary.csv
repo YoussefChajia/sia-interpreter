@@ -1,0 +1,11 @@
+Test,Mode,Language,Average Duration
+Fibonacci,Sequential,Python,0.318
+Fibonacci,Threading,Python,0.326
+Fibonacci,Multiprocessing,Python,0.259
+Fibonacci,Sequential,Sia,91.145
+Fibonacci,Parallel,Sia,53.246
+IterativeSum,Sequential,Python,0.376
+IterativeSum,Threading,Python,0.372
+IterativeSum,Multiprocessing,Python,0.297
+IterativeSum,Sequential,Sia,15.904
+IterativeSum,Parallel,Sia,7.76

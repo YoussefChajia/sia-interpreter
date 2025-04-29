@@ -1,0 +1,7 @@
+Test,Language,Sequential,Mode,Parallel,Speedup
+Fibonacci,Python,0.318,Threading,0.326,.97546012269938650306
+Fibonacci,Python,0.318,Multiprocessing,0.259,1.22779922779922779922
+Fibonacci,Sia,91.145,Parallel,53.246,1.71177177628366450061
+IterativeSum,Python,0.376,Threading,0.372,1.01075268817204301075
+IterativeSum,Python,0.376,Multiprocessing,0.297,1.26599326599326599326
+IterativeSum,Sia,15.904,Parallel,7.76,2.04948453608247422680
